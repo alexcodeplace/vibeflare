@@ -1,0 +1,21 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+minimumReleaseAge: 4320
+minimumReleaseAgeStrict: true
+
+allowBuilds:
+  '@astryxdesign/core': false
+  esbuild: true
+  workerd: true
+
+overrides:
+  source-map-js: 1.2.2
+  sharp: 0.35.5
+  svgo: 4.1.0
+  browserslist: 4.28.7
+  '@babel/core': 7.29.6
+
+  http-cache-semantics: file:vendor/security/http-cache-semantics
+  braces: file:vendor/security/braces
