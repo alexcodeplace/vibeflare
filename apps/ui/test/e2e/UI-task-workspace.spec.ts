@@ -115,7 +115,7 @@ for (const theme of ['light', 'dark']) for (const width of [1440, 390, 320]) {
 test('Image composer uses a small plus picker instead of an always-visible dropzone', async ({ page }) => {
   await setup(page);
   await page.getByRole('tab', { name: 'Image', exact: true }).click();
-  await expect(page.getByRole('combobox')).toContainText(selectedModels.Image);
+  await expect(page.getByRole('combobox')).toContainText(selectedModels.Image!);
   await expect(page.getByTestId('file-dropzone')).toHaveCount(0);
   await expect(page.getByTestId('composer-drop-overlay')).toHaveCount(0);
   const chooserPromise = page.waitForEvent('filechooser');
