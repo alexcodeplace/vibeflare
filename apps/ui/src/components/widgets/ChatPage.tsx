@@ -18,7 +18,6 @@ import { readPromptFile, TEXT_FILE_ACCEPT, PROMPT_FILE_ACCEPT, MAX_TEXT_FILE_BYT
 import { AudioTranscribePanel } from './AudioTranscribePanel';
 import { EmbeddingSimilarityPanel } from './EmbeddingSimilarityPanel';
 import { ModelPicker } from './ModelPicker';
-import { Card } from '../primitives/Card';
 import { Tabs } from '../primitives/Tabs';
 import { Toast } from '../primitives/Toast';
 import { HydratedIsland } from '../HydratedIsland';
@@ -71,6 +70,7 @@ function ChatPageInner() {
   const [imagePrompt, setImagePrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [pendingImagePrompt, setPendingImagePrompt] = useState<string | null>(null);
   const latestDraft = useRef({ input, imagePrompt, activeTask });
   latestDraft.current = { input, imagePrompt, activeTask };
 
@@ -304,6 +304,9 @@ function ChatPageInner() {
     if (!prompt || operationRef.current || busy || fileReading.current) return;
     if (!model) { notify('Choose an image model first.'); return; }
     operationRef.current = true;
+    setConversationStarted(true);
+    setPendingImagePrompt(prompt);
+    setImagePrompt('');
     setGenerating(true);
     setImageError(null);
     const controller = new AbortController();
@@ -323,19 +326,21 @@ function ChatPageInner() {
       }
       await loadHistory(id, controller.signal);
       if (controller.signal.aborted) return;
-      setImagePrompt('');
+      setPendingImagePrompt(null);
       setImportedFileName(null);
       notifyQuotaChanged();
     } catch (error) {
       if (!controller.signal.aborted) {
         // The composer clears on submit; restore failed input without replacing
         // a different prompt the user started typing while the request ran.
+        setPendingImagePrompt(null);
         setImagePrompt(current => current.trim() ? current : prompt);
         setImageError(error instanceof Error ? error.message : 'Image generation failed');
       }
     } finally {
       operationRef.current = false;
       // A user cancellation remains usable without switching to another task.
+      setPendingImagePrompt(null);
       setGenerating(false);
       abortRef.current = null;
     }
@@ -384,20 +389,23 @@ function ChatPageInner() {
     />
   );
 
-  const results = messages.map((message, index) => isImageMode ? (
-    <Card key={message.id} variant="outlined" className="vf-history-result space-y-3 p-4">
-      <p className="text-xs text-[var(--color-muted)]">{message.role === 'assistant' ? 'Generated image' : 'Your prompt'}</p>
-      <p className="whitespace-pre-wrap text-sm text-[var(--color-text)]">{message.content}</p>
-      <HistoryAttachments metadata={message.attachments} prompt={message.role === 'assistant' ? messages[index - 1]?.content ?? message.content : message.content} />
-    </Card>
-  ) : (
+  const renderConversationMessage = (message: UiMessage, index: number) => (
     <AstryxChatMessage key={message.id} sender={message.role} avatar={message.role === 'assistant' ? <img src="/assets/brand/vibeflare-mark.webp" width={32} height={32} alt="VibeFlare" style={{ objectFit: 'contain' }} /> : undefined}>
       <ChatMessageBubble variant={message.role === 'assistant' ? 'ghost' : 'filled'}>
         {message.role === 'assistant' ? <Markdown density="compact" isStreaming={sending && message.id === messages.at(-1)?.id}>{message.content || (isEmbeddingMode ? 'Creating embeddings…' : 'Thinking…')}</Markdown> : message.content}
-        <HistoryAttachments metadata={message.attachments} prompt={message.content} />
+        <HistoryAttachments metadata={message.attachments} prompt={isImageMode && message.role === 'assistant' ? messages[index - 1]?.content ?? message.content : message.content} />
       </ChatMessageBubble>
     </AstryxChatMessage>
-  ));
+  );
+  const results = messages.map(renderConversationMessage);
+  const pendingImageTurns = isImageMode && generating && pendingImagePrompt ? [
+    <AstryxChatMessage key="pending-image-user" sender="user">
+      <ChatMessageBubble variant="filled">{pendingImagePrompt}</ChatMessageBubble>
+    </AstryxChatMessage>,
+    <AstryxChatMessage key="pending-image-assistant" sender="assistant" avatar={<img src="/assets/brand/vibeflare-mark.webp" width={32} height={32} alt="VibeFlare" style={{ objectFit: 'contain' }} />}>
+      <ChatMessageBubble variant="ghost"><Markdown density="compact" isStreaming>Creating image…</Markdown></ChatMessageBubble>
+    </AstryxChatMessage>,
+  ] : [];
   const starters = activeTask === 'text-generation' && messages.length === 0 ? <div className="vf-starters" aria-label="Conversation starters">
     {STARTERS.map(starter => <button type="button" key={starter.title} className="vf-starter" data-vf-spotlight data-testid="vf-prompt-starter"
       onClick={() => { setInput(starter.prompt); requestAnimationFrame(() => composerRef.current?.querySelector<HTMLElement>('[contenteditable="true"], textarea')?.focus()); }}>
@@ -405,7 +413,7 @@ function ChatPageInner() {
     </button>)}
   </div> : undefined;
 
-  const activeConversation = conversationStarted && (activeTask === 'text-generation' || isAudioMode);
+  const activeConversation = conversationStarted && (activeTask === 'text-generation' || isImageMode || isAudioMode);
   const activeConversationView = activeConversation ? (
     <div className="vf-chat-conversation" data-testid="chat-conversation">
       <ChatLayout
@@ -414,7 +422,15 @@ function ChatPageInner() {
         emptyState={loadingHistory ? <div role="status" className="flex items-center justify-center p-8"><Spinner size="lg" /></div> : undefined}
       >
         {loadingHistory && messages.length === 0 ? null : (
-          <ChatMessageList align="bottom" isStreaming={sending || audioBusy}>{results}</ChatMessageList>
+          <ChatMessageList align="bottom" isStreaming={sending || generating || audioBusy}>
+            {results}
+            {pendingImageTurns}
+            {isImageMode && imageError ? (
+              <AstryxChatMessage sender="assistant" avatar={<img src="/assets/brand/vibeflare-mark.webp" width={32} height={32} alt="VibeFlare" style={{ objectFit: 'contain' }} />}>
+                <ChatMessageBubble variant="ghost"><p role="alert" className="vf-inline-notice vf-inline-notice--error">{imageError}</p></ChatMessageBubble>
+              </AstryxChatMessage>
+            ) : null}
+          </ChatMessageList>
         )}
       </ChatLayout>
     </div>
@@ -444,7 +460,7 @@ function ChatPageInner() {
             input={isAudioMode ? audioComposer : promptComposer}>
             {loadingHistory && <div role="status" className="flex items-center justify-center p-8"><Spinner size="lg" /></div>}
             {imageError && <p role="alert" className="vf-inline-notice vf-inline-notice--error">{imageError}</p>}
-            {isImageMode ? results : messages.length > 0 ? <ChatMessageList align="top" isStreaming={sending || embeddingBusy}>{results}</ChatMessageList> : null}
+            {messages.length > 0 ? <ChatMessageList align="top" isStreaming={sending || embeddingBusy}>{results}</ChatMessageList> : null}
           </TaskWorkspace>
         )}
       </div>

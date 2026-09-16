@@ -24,7 +24,7 @@ export const TASK_PRESENTATION: Record<string, { title: string; description: str
   },
 };
 
-/** Stable zero-state and non-chat task geometry. Active text conversations
+/** Stable zero-state and non-chat task geometry. Active Text, Image and Audio conversations
  * switch to Astryx ChatLayout in ChatPage, where messages sit above the docked composer. */
 export function TaskWorkspace({ task, input, children, extras }: { task: string; input: ReactNode; children?: ReactNode; extras?: ReactNode }) {
   const info = TASK_PRESENTATION[task] ?? TASK_PRESENTATION['text-generation']!;
