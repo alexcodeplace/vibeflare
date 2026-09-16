@@ -37,7 +37,7 @@ Primary references verified on 2026-09-13:
 
 Embeddings retain the stable task input/results geometry. Image and Audio share that same landing geometry before their first request, then use the same Astryx conversation shell as Text. The toolbar and model selector remain stable across task switches. Narrow screens keep the same stacked toolbar and input geometry; reduced-motion, focus and forced-colors behavior remain supported. Club artwork and semantic brand tokens are reused.
 
-`FileDropzone` is the shared keyboard-accessible drop/browse primitive. It validates both selection paths, rejects duplicate work and allows a task callback instead of automatically uploading every dropped file. Ordinary Files-page uploads retain their existing behavior.
+`FileDropzone` remains the shared keyboard-accessible drop/browse primitive for Files and Audio. Text, Image and Embeddings use a quieter composer-specific import control instead: a small `+` button at the composer top-right opens the native file picker, and file drags are detected across the entire page. The drag affordance is only rendered over the composer editing area while a file is actively being dragged, so the page is a valid drop surface without turning the full page into a visual dropzone. Both paths validate the same task file constraints and consume the actual file without starting inference.
 
 - Text: import UTF-8 text/Markdown/CSV/JSON into the actual message, visibly editable before Send.
 - Image: import a written .txt/.md prompt. The tab explicitly says reference-image editing is not implemented; it does not pretend to use an ignored image attachment.
