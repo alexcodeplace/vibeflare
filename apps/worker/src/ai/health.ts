@@ -1,6 +1,6 @@
 import type { Env } from '../env';
-import { recordModelSuccess, recordModelFailure } from '../db/queries';
-import { isUpstreamQuotaError } from './errors';
+import { markModelPaidRequired, recordModelSuccess, recordModelFailure } from '../db/queries';
+import { isPaidPlanRequiredError, isUpstreamQuotaError } from './errors';
 
 /** Consecutive upstream failures on real traffic before a model is taken out of the catalog. */
 const FAILURE_THRESHOLD = 3;
@@ -20,13 +20,21 @@ export async function recordModelHealth(env: Env, signal: ModelHealthSignal): Pr
   if (!signal.model || signal.cached) return;
 
   const now = Date.now();
+  const message = signal.error ?? `status ${signal.status}`;
+
+  // 5035 is account-plan metadata, not a dead model. Learn it immediately from
+  // the user's real request so future model lists can hide it without probing.
+  if (signal.status >= 400 && isPaidPlanRequiredError(message)) {
+    await markModelPaidRequired(env.DB, signal.model, message, now);
+    return;
+  }
+
   if (signal.status < 400) {
     await recordModelSuccess(env.DB, signal.model, now);
     return;
   }
   if (signal.status < 500) return;
 
-  const message = signal.error ?? `status ${signal.status}`;
   // A spent neuron allocation says nothing about the model.
   if (isUpstreamQuotaError(message)) return;
 

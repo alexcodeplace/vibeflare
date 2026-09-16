@@ -222,7 +222,13 @@ export async function upsertModel(
        ON CONFLICT(name) DO UPDATE SET
          task = excluded.task,
          description = excluded.description,
-         properties = excluded.properties,
+         properties = CASE
+           WHEN json_extract(CASE WHEN json_valid(models.properties) THEN models.properties ELSE '{}' END, '$.paid_observed') = 1
+           THEN json_patch(CASE WHEN json_valid(excluded.properties) THEN excluded.properties ELSE '{}' END, '{"paid_required":true,"paid_observed":true}')
+           WHEN json_type(CASE WHEN json_valid(excluded.properties) THEN excluded.properties ELSE '{}' END, '$.paid_required') = 'null'
+           THEN json_patch(CASE WHEN json_valid(models.properties) THEN models.properties ELSE '{}' END,
+                           json_remove(excluded.properties, '$.paid_required'))
+           ELSE excluded.properties END,
          neurons_input = excluded.neurons_input,
          neurons_output = excluded.neurons_output,
          neurons_flat = excluded.neurons_flat,
@@ -302,6 +308,21 @@ export async function recordModelFailure(
     )
     .bind(error, at, threshold, name)
     .run();
+}
+
+/** Mark a model as requiring paid billing after real traffic proves it. */
+export async function markModelPaidRequired(
+  db: D1Database,
+  name: string,
+  error: string,
+  at: number
+): Promise<void> {
+  await db.prepare(`UPDATE models SET
+    properties = json_patch(
+      CASE WHEN json_valid(properties) AND json_type(properties) = 'object' THEN properties ELSE '{}' END,
+      '{"paid_required":true,"paid_observed":true}'),
+    probe_error = ?, probed_at = ? WHERE name = ?`
+  ).bind(error, at, name).run();
 }
 
 /**

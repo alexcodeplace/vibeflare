@@ -10,6 +10,7 @@ export interface PublicCatalogModel {
   pricing: string | null;
   neuronsInput: number | null;
   neuronsOutput: number | null;
+  paidRequired: boolean | null;
 }
 
 function decodeHtml(value: string): string {
@@ -37,6 +38,20 @@ interface TokenNeuronRates {
   raw: string;
 }
 
+/**
+ * Cloudflare explicitly lists models that require a paid billing method in the
+ * public pricing markdown. Reading this metadata is free and avoids synthetic
+ * inference probes that would consume neurons.
+ */
+export function parsePaidRequiredModels(markdown: string): Set<string> {
+  const result = new Set<string>();
+  const paragraph = markdown.replace(/\r\n/g, '\n').match(/Some\s+models\s+require\s+a\s+paid\s+billing\s+method\.[\s\S]*?(?=\n\s*\n|$)/i)?.[0] ?? '';
+  for (const match of paragraph.matchAll(/`(@[^`\s]+\/[^`\s]+)`/g)) {
+    result.add(match[1]!);
+  }
+  return result;
+}
+
 export function parseNeuronPricing(markdown: string): Map<string, TokenNeuronRates> {
   const rates = new Map<string, TokenNeuronRates>();
   for (const line of markdown.split('\n')) {
@@ -62,6 +77,7 @@ export function parseNeuronPricing(markdown: string): Map<string, TokenNeuronRat
 
 export function parseCloudflareModelsHtml(html: string, pricingMarkdown = ''): PublicCatalogModel[] {
   const pricing = parseNeuronPricing(pricingMarkdown);
+  const paidRequired = parsePaidRequiredModels(pricingMarkdown);
   const models = new Map<string, PublicCatalogModel>();
   const cell = /<div\s+data-models-cell\s+([^>]+)>/g;
   let match: RegExpExecArray | null;
@@ -84,6 +100,7 @@ export function parseCloudflareModelsHtml(html: string, pricingMarkdown = ''): P
       pricing: rates?.raw ?? attr(attrs, 'model-pricing'),
       neuronsInput: rates?.input ?? null,
       neuronsOutput: rates?.output ?? null,
+      paidRequired: paidRequired.has(name) ? true : paidRequired.size > 0 && pricing.has(name) ? false : null,
     });
   }
   return [...models.values()];

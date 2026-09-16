@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Select } from '../primitives/Select';
 import { Spinner } from '../primitives/Spinner';
 import { Badge } from '../primitives/Badge';
 import { Button } from '../primitives/Button';
-import { listModels, syncModels, type ModelInfo } from '../../lib/api';
+import { listModels, syncModels, MODELS_CHANGED_EVENT, MODEL_POLICY_STORAGE_KEY, type ModelInfo } from '../../lib/api';
 
 export interface ModelPickerProps {
   onChange?: (modelId: string, task: string) => void;
   task?: string;
+  value?: string;
 }
 
 const PREFERRED_MODELS: Record<string, readonly string[]> = {
@@ -31,8 +32,15 @@ function preferenceRank(model: ModelInfo, task?: string): number {
   return rank === -1 ? Number.MAX_SAFE_INTEGER : rank;
 }
 
+export function modelLabelForPicker(model: ModelInfo): string {
+  return `${model.paid_required === true ? '💲 ' : ''}${model.name}${model.paid_required === null ? ' (billing unknown)' : ''}`;
+}
+
 export function sortModelsForPicker(models: ModelInfo[], task?: string): ModelInfo[] {
   return [...models].sort((a, b) => {
+    const billingRank = (m: ModelInfo) => m.paid_required === true ? 2 : m.paid_required === null ? 1 : 0;
+    const paidDelta = billingRank(a) - billingRank(b);
+    if (paidDelta !== 0) return paidDelta;
     const rankDelta = preferenceRank(a, task) - preferenceRank(b, task);
     if (rankDelta !== 0) return rankDelta;
     return a.name.localeCompare(b.name);
@@ -43,15 +51,19 @@ export function chooseDefaultModel(models: ModelInfo[], task?: string): ModelInf
   return sortModelsForPicker(models, task)[0];
 }
 
-export function ModelPicker({ onChange, task }: ModelPickerProps) {
+export function ModelPicker({ onChange, task, value }: ModelPickerProps) {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState('');
+  const [internalSelected, setSelected] = useState('');
+  const selected = value ?? internalSelected;
 
+  const requestVersion = useRef(0);
   async function loadModels() {
+    const version = ++requestVersion.current;
     const next = await listModels();
+    if (version !== requestVersion.current) return;
     setModels(next);
     setError(null);
   }
@@ -61,6 +73,15 @@ export function ModelPicker({ onChange, task }: ModelPickerProps) {
     loadModels()
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
+    const update = () => { void loadModels().catch((e: Error) => setError(e.message)); };
+    const onStorage = (event: StorageEvent) => { if (event.key === MODEL_POLICY_STORAGE_KEY) update(); };
+    window.addEventListener(MODELS_CHANGED_EVENT, update);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      requestVersion.current++;
+      window.removeEventListener(MODELS_CHANGED_EVENT, update);
+      window.removeEventListener('storage', onStorage);
+    };
   }, []);
 
   const filtered = useMemo(
@@ -81,7 +102,7 @@ export function ModelPicker({ onChange, task }: ModelPickerProps) {
     if (selected && filtered.some((model) => model.name === selected)) return;
     setSelected(first.name);
     onChange?.(first.name, first.task);
-  }, [task, loading, models]);
+  }, [task, loading, filtered, selected, onChange]);
 
   async function refresh() {
     setRefreshing(true);
@@ -112,7 +133,7 @@ export function ModelPicker({ onChange, task }: ModelPickerProps) {
         ) : (
           <Select
             placeholder="Select a Model…"
-            options={filtered.map((model) => ({ value: model.name, label: model.name }))}
+            options={filtered.map((model) => ({ value: model.name, label: modelLabelForPicker(model) }))}
             value={selected}
             onValueChange={handleSelect}
             className="w-full"

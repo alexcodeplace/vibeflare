@@ -8,6 +8,7 @@ import {
   rearmDisabledModels,
 } from '../src/db/queries';
 import { recordModelHealth } from '../src/ai/health';
+import { modelRequiresPaid } from '../src/models/access';
 
 const testEnv = env as unknown as Env;
 
@@ -60,6 +61,31 @@ describe('recordModelHealth', () => {
     expect(row?.enabled).toBe(1);
     expect(row?.fail_streak).toBe(0);
     expect(row?.probe_error).toBeNull();
+  });
+
+  it('learns a paid-plan requirement from real traffic without disabling the model', async () => {
+    await seed('@cf/test/frontier');
+    await recordModelHealth(testEnv, {
+      model: '@cf/test/frontier',
+      status: 403,
+      error: 'AiError: 5035: Model is not available on the Workers Free plan',
+    });
+
+    const row = await getModel(env.DB, '@cf/test/frontier');
+    expect(row?.enabled).toBe(1);
+    expect(row?.fail_streak).toBe(0);
+    expect(row?.probe_error).toContain('5035');
+    expect(row ? modelRequiresPaid(row) : false).toBe(true);
+  });
+
+  it('retains paid observations across daily catalog refreshes and real successes', async () => {
+    await seed('@cf/test/observed');
+    await recordModelHealth(testEnv, { model: '@cf/test/observed', status: 403, error: 'AiError: 5035' });
+    await upsertModel(env.DB, { ...base, name: '@cf/test/observed', properties: '{"paid_required":false,"source":"refreshed"}' });
+    await recordModelHealth(testEnv, { model: '@cf/test/observed', status: 200 });
+    const row = await getModel(env.DB, '@cf/test/observed');
+    expect(modelRequiresPaid(row!)).toBe(true);
+    expect(JSON.parse(row!.properties!).source).toBe('refreshed');
   });
 
   it('quota exhaustion is not counted against the model', async () => {

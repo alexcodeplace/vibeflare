@@ -14,6 +14,8 @@ const { title = 'VibeFlare' } = Astro.props;
       id="menu-toggle"
       class="lg:hidden p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)]/40 transition-colors"
       aria-label="Toggle menu"
+      aria-controls="sidebar"
+      aria-expanded="false"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
@@ -30,32 +32,44 @@ const { title = 'VibeFlare' } = Astro.props;
 </header>
 
 <script>
-  (function() {
+  let releaseMenu: (() => void) | undefined;
+
+  function bindMenu() {
+    releaseMenu?.();
     const toggle = document.getElementById('menu-toggle');
     const sidebar = document.getElementById('sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     if (!toggle || !sidebar) return;
+    const listeners = new AbortController();
+    const options = { signal: listeners.signal };
     const menu = sidebar;
 
-    function open() {
-      menu.classList.remove('hidden');
-      menu.classList.add('sidebar--open');
-      backdrop?.classList.remove('hidden');
-      document.body.style.overflow = 'hidden';
-    }
     function close() {
       menu.classList.add('hidden');
       menu.classList.remove('sidebar--open');
       backdrop?.classList.add('hidden');
+      toggle?.setAttribute('aria-expanded', 'false');
       document.body.style.overflow = '';
     }
-    toggle.addEventListener('click', () => {
-      menu.classList.contains('sidebar--open') ? close() : open();
-    });
-    backdrop?.addEventListener('click', close);
-    document.addEventListener('astro:after-swap', close);
-    addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && menu.classList.contains('sidebar--open')) close();
-    });
-  })();
+    function open() {
+      menu.classList.remove('hidden');
+      menu.classList.add('sidebar--open');
+      backdrop?.classList.remove('hidden');
+      toggle?.setAttribute('aria-expanded', 'true');
+      document.body.style.overflow = 'hidden';
+    }
+    toggle.addEventListener('click', () => menu.classList.contains('sidebar--open') ? close() : open(), options);
+    backdrop?.addEventListener('click', close, options);
+    document.addEventListener('astro:before-swap', close, options);
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && menu.classList.contains('sidebar--open')) {
+        close();
+        toggle?.focus();
+      }
+    }, options);
+    releaseMenu = () => { close(); listeners.abort(); };
+  }
+  bindMenu();
+  // Astro retains scripts across page swaps, but replaces their DOM targets.
+  document.addEventListener('astro:page-load', bindMenu);
 </script>

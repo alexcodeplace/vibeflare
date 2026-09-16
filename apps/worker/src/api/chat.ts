@@ -276,7 +276,7 @@ async function persistChatMessage(
       'INSERT INTO chats (id, user_id, title, model, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
     ).bind(chatId, userId, title, body.model, now, now).run();
   } else {
-    await env.DB.prepare('UPDATE chats SET updated_at = ? WHERE id = ?').bind(now, chatId).run();
+    await env.DB.prepare('UPDATE chats SET updated_at = ?, model = ? WHERE id = ? AND user_id = ?').bind(now, body.model, chatId, userId).run();
   }
 
   // Persist last user message

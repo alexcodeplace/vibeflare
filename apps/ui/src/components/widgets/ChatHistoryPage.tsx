@@ -128,6 +128,7 @@ function ChatHistoryPageInner() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    aria-label={`Delete ${chat.title || 'Untitled chat'}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       setDeleteId(chat.id);

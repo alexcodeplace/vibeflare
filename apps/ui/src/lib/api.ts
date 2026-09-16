@@ -42,10 +42,11 @@ export interface QuotaInfo {
 }
 
 export interface ModelInfo {
-  id: string;
+  id?: string;
   name: string;
   task: string;
-  provider: string;
+  provider?: string;
+  paid_required: boolean | null;
 }
 
 export interface ApiKey {
@@ -124,6 +125,15 @@ export function notifyQuotaChanged(): void {
 
 export function getQuota(): Promise<QuotaInfo> {
   return apiFetch('/admin/quota', { cache: 'no-store' });
+}
+
+// A metadata-only refresh shared between tabs. No timer or inference probe.
+export const MODELS_CHANGED_EVENT = 'vibeflare:models-changed';
+export const MODEL_POLICY_STORAGE_KEY = 'vibeflare:model-policy-revision';
+export function notifyModelsChanged(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(MODELS_CHANGED_EVENT));
+  try { window.localStorage.setItem(MODEL_POLICY_STORAGE_KEY, String(Date.now())); } catch { /* Private browsing may block storage. */ }
 }
 
 // ── Models ───────────────────────────────────────────────────────────────────
@@ -278,8 +288,17 @@ export interface ChatRecord {
 }
 
 export async function listChats(): Promise<ChatRecord[]> {
-  const r = await apiFetch<{ chats: ChatRecord[] }>('/admin/chats');
+  const r = await apiFetch<{ chats: ChatRecord[] }>('/admin/chats', { cache: 'no-store' });
   return r.chats;
+}
+
+/** Persist a conversation before inference so it appears in Workspace immediately. */
+export async function createChat(title: string, model: string, signal?: AbortSignal): Promise<ChatRecord> {
+  const result = await apiFetch<{ chat: ChatRecord }>('/admin/chats', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, model }), signal,
+  });
+  return result.chat;
 }
 
 export interface ChatMessageRecord {
@@ -318,16 +337,17 @@ export function deleteChat(id: string): Promise<void> {
 // ── Settings ─────────────────────────────────────────────────────────────────
 
 export async function getSettings(): Promise<Setting[]> {
-  const r = await apiFetch<{ settings: Record<string, string> }>('/admin/settings');
+  const r = await apiFetch<{ settings: Record<string, string> }>('/admin/settings', { cache: 'no-store' });
   return Object.entries(r.settings ?? {}).map(([key, value]) => ({ key, value }));
 }
 
-export function setSetting(key: string, value: string): Promise<void> {
-  return apiFetch('/admin/settings', {
+export async function setSetting(key: string, value: string): Promise<void> {
+  await apiFetch('/admin/settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key, value }),
+    body: JSON.stringify({ [key]: value }),
   });
+  if (key === 'models.exclude_paid') notifyModelsChanged();
 }
 
 // ── Prompts ──────────────────────────────────────────────────────────────────

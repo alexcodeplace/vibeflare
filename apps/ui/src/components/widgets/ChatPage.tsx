@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { getChatMessages, notifyQuotaChanged, redirectToLoginOnce, uploadFile } from '../../lib/api';
+import { createChat, getChatMessages, notifyModelsChanged, notifyQuotaChanged, redirectToLoginOnce, uploadFile } from '../../lib/api';
 import {
   ChatComposer,
   ChatComposerDrawer,
@@ -24,6 +24,7 @@ import { Tabs } from '../primitives/Tabs';
 import { Toast } from '../primitives/Toast';
 import { HydratedIsland } from '../HydratedIsland';
 import { Spinner } from '../primitives/Spinner';
+import { cacheCreatedChat, notifyChatNavigation, refreshChats } from '../../lib/api/chats';
 
 let msgCounter = 0;
 function nextId() { return `msg-${++msgCounter}`; }
@@ -82,6 +83,8 @@ function ChatPageInner() {
   const [chatId, setChatId] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   const isImageMode = activeTask === 'text-to-image';
   const isAudioMode = activeTask === 'automatic-speech-recognition';
 
@@ -120,6 +123,7 @@ function ChatPageInner() {
     const url = new URL(window.location.href);
     url.searchParams.delete('chat_id');
     window.history.replaceState(null, '', url.toString());
+    notifyChatNavigation();
   }
 
   function handleModelChange(name: string, task: string) {
@@ -162,16 +166,18 @@ function ChatPageInner() {
     setSending(true);
     abortRef.current = new AbortController();
 
-    let activeChatId = chatId;
-    if (!activeChatId) {
-      activeChatId = crypto.randomUUID();
-      setChatId(activeChatId);
-      const url = new URL(window.location.href);
-      url.searchParams.set('chat_id', activeChatId);
-      window.history.replaceState(null, '', url.toString());
-    }
-
     try {
+      let activeChatId = chatId;
+      if (!activeChatId) {
+        const chat = await createChat(text, model, abortRef.current.signal);
+        activeChatId = chat.id;
+        setChatId(chat.id);
+        const location = new URL(window.location.href);
+        location.searchParams.set('chat_id', chat.id);
+        window.history.replaceState(null, '', location.toString());
+        await cacheCreatedChat(chat);
+        notifyChatNavigation();
+      }
       const url = new URL('/v1/chat/completions', window.location.origin);
       url.searchParams.set('chat_id', activeChatId);
       const response = await fetch(url.toString(), {
@@ -195,7 +201,8 @@ function ChatPageInner() {
         return;
       }
       if (!response.ok) {
-        const error = await response.json().catch(() => ({})) as { error?: { message?: string } };
+        const error = await response.json().catch(() => ({})) as { error?: { type?: string; message?: string } };
+        if (error.error?.type === 'paid_plan_required' || error.error?.type === 'paid_model_excluded') notifyModelsChanged();
         throw new Error(error.error?.message ?? `Request failed (${response.status})`);
       }
       if (!response.body) throw new Error('The model returned an empty response.');
@@ -231,6 +238,7 @@ function ChatPageInner() {
         }
       }
       notifyQuotaChanged();
+      refreshChats();
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         setMessages((previous) => previous.map((message) =>
@@ -273,7 +281,8 @@ function ChatPageInner() {
         return;
       }
       if (!response.ok) {
-        const error = await response.json().catch(() => ({})) as { error?: { message?: string } };
+        const error = await response.json().catch(() => ({})) as { error?: { type?: string; message?: string } };
+        if (error.error?.type === 'paid_plan_required' || error.error?.type === 'paid_model_excluded') notifyModelsChanged();
         throw new Error(error.error?.message ?? `Request failed (${response.status})`);
       }
       const data = await response.json() as { data: Array<{ url?: string; b64_json?: string }> };
@@ -319,12 +328,14 @@ function ChatPageInner() {
       onSubmit={sendMessage}
       onStop={() => abortRef.current?.abort()}
       isStopShown={sending}
-      isDisabled={uploadingFiles}
+      isDisabled={uploadingFiles || !model || loadingHistory}
       placeholder="Ask anything"
       drawer={attachmentDrawer}
       input={
         <ChatComposerInput
           value={input}
+          isDisabled={!model || loadingHistory}
+          aria-disabled={!model || loadingHistory}
           onChange={setInput}
           onSubmit={sendMessage}
           onFiles={(files) => void addFiles(files)}
@@ -445,7 +456,7 @@ function ChatPageInner() {
           onValueChange={handleTaskChange}
           variant="segmented"
         />
-        <ModelPicker task={activeTask} onChange={handleModelChange} />
+        <ModelPicker task={activeTask} value={model} onChange={handleModelChange} />
       </div>
       <div className="min-h-0 flex-1">
         {isAudioMode ? <AudioTranscribePanel model={model} /> : isImageMode ? imageSurface : textSurface}

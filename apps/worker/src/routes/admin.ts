@@ -14,6 +14,7 @@ import {
   listUsers,
   deleteUser,
   listModels,
+  getModel,
   getAllSettings,
   setSetting,
   recentAuditEvents,
@@ -28,6 +29,7 @@ import { createPrompt, getPrompt, listPrompts, deletePrompt } from '../cache/pro
 import { putFile, getFile, deleteFile as deleteR2File } from '../files/r2';
 import { withCache } from '../lib/cache';
 import { ensureModelCatalog, refreshModelCatalog } from '../models/catalog';
+import { EXCLUDE_PAID_MODELS_SETTING, excludePaidModelsEnabled, filterPaidModels } from '../models/access';
 import adminInvites from './admin.invites';
 import { startRegistration, finishRegistration } from '../auth/passkey';
 import { GITHUB_PRIVATE_SETTING_KEYS, isPrivateGithubSettingKey } from '../auth/github_web';
@@ -214,7 +216,11 @@ admin.get('/models', async (c) => {
   try {
     await ensureModelCatalog(c.env);
     const models = await listModels(c.env.DB, task);
-    return c.json({ models }, 200, { 'Cache-Control': 'private, no-store' });
+    const excludePaid = await excludePaidModelsEnabled(c.env.DB);
+    return c.json({
+      models: filterPaidModels(models, excludePaid),
+      exclude_paid: excludePaid,
+    }, 200, { 'Cache-Control': 'private, no-store' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'model discovery failed';
     console.error('[models/bootstrap] error:', error);
@@ -247,13 +253,26 @@ admin.get('/cron', requireOwner, async (c) => {
 
 admin.get('/settings', async (c) => {
   const settings = await getAllSettings(c.env.DB);
-  return c.json({ settings: publicSettingsObject(settings) });
+  const visible = publicSettingsObject(settings);
+  visible[EXCLUDE_PAID_MODELS_SETTING] ??= '1';
+  return c.json({ settings: visible }, 200, { 'Cache-Control': 'private, no-store' });
 });
 
 // ── PUT /admin/settings ───────────────────────────────────────────────────────
 
 admin.put('/settings', async (c) => {
-  const body = await c.req.json<Record<string, string>>();
+  const body = await c.req.json<Record<string, unknown>>().catch(() => null);
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return c.json({ error: { type: 'invalid_request', message: 'Expected a setting-name/value object' } }, 400);
+  }
+  // This policy applies to the entire installation and must not be relaxed by a member.
+  if (EXCLUDE_PAID_MODELS_SETTING in body) {
+    const user = await getUserById(c.env.DB, c.get('userId'));
+    if (user?.role !== 'owner') return c.json({ error: { type: 'forbidden', message: 'owner role required' } }, 403);
+    if (!['0', '1'].includes(String(body[EXCLUDE_PAID_MODELS_SETTING])) || typeof body[EXCLUDE_PAID_MODELS_SETTING] !== 'string') {
+      return c.json({ error: { type: 'invalid_request', message: 'models.exclude_paid must be "0" or "1"' } }, 400);
+    }
+  }
   const now = Date.now();
   for (const [key, value] of Object.entries(body)) {
     if (typeof value !== 'string' || PRIVATE_SETTING_KEYS.has(key) || isPrivateGithubSettingKey(key)) continue;
@@ -295,7 +314,24 @@ admin.get('/usage', async (c) => {
 admin.get('/chats', async (c) => {
   const userId = c.get('userId');
   const chats = await listChatsByUser(c.env.DB, userId);
-  return c.json({ chats });
+  return c.json({ chats }, 200, { 'Cache-Control': 'private, no-store' });
+});
+
+// Create a lightweight conversation row, with no AI calls or generated titles.
+admin.post('/chats', async (c) => {
+  const body = await c.req.json<{ title?: unknown; model?: unknown }>().catch(() => null);
+  if (!body || typeof body.title !== 'string' || !body.title.trim() || typeof body.model !== 'string') {
+    return c.json({ error: { type: 'invalid_request', message: 'title and model are required' } }, 400);
+  }
+  const model = await getModel(c.env.DB, body.model);
+  if (!model || model.enabled === 0) return c.json({ error: { type: 'not_found', message: 'model not found' } }, 404);
+  const normalized = body.title.replace(/\s+/g, ' ').trim();
+  const title = normalized.length > 60 ? normalized.slice(0, 60).trimEnd() + '…' : normalized;
+  const now = Date.now();
+  const chat = { id: newId(), title, model: body.model, created_at: now, updated_at: now };
+  await c.env.DB.prepare('INSERT INTO chats (id, user_id, title, model, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(chat.id, c.get('userId'), title, chat.model, now, now).run();
+  return c.json({ chat }, 201, { 'Cache-Control': 'private, no-store' });
 });
 
 // ── GET /admin/chats/:id/messages ─────────────────────────────────────────────

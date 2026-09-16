@@ -1,4 +1,6 @@
 ---
+import { WorkspaceChats } from '../widgets/WorkspaceChats';
+
 const pathname = Astro.url.pathname;
 
 interface NavLink {
@@ -16,14 +18,15 @@ const NAV_LINKS: NavLink[] = [
   { href: '/settings', label: 'Settings', svg: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>' },
 ];
 ---
-<aside id="sidebar" class="hidden lg:flex flex-col w-56 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] h-full min-h-screen">
+<aside id="sidebar" class="hidden lg:flex flex-col w-56 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] h-full min-h-0">
   <div class="px-4 pt-6 pb-4">
     <span class="text-base font-bold text-[var(--color-accent)]">VibeFlare</span>
   </div>
-  <nav class="flex flex-col gap-1 px-3 flex-1">
+  <nav aria-label="Main navigation" class="flex min-h-0 flex-col gap-1 overflow-y-auto px-3 flex-1">
     {NAV_LINKS.map(({ href, label, svg }) => {
       const active = pathname === href || pathname.startsWith(href + '/');
       return (
+        <div class="shrink-0 min-w-0">
         <a
           href={href}
           aria-current={active ? 'page' : undefined}
@@ -37,10 +40,12 @@ const NAV_LINKS: NavLink[] = [
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0" set:html={svg} />
           {label}
         </a>
+        {href === '/chat' && <WorkspaceChats client:load />}
+        </div>
       );
     })}
   </nav>
-  <div class="px-3 pb-4 mt-auto">
+  <div class="px-3 pb-4 pt-2 mt-auto shrink-0">
     <div class="border-t border-[var(--color-border)] pt-4 flex items-center gap-3">
       <div class="w-8 h-8 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center text-xs font-semibold text-[var(--color-accent)] shrink-0">U</div>
       <div class="min-w-0 flex-1">

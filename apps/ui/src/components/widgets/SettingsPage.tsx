@@ -6,6 +6,7 @@ import { Button } from '../primitives/Button';
 import { Input } from '../primitives/Input';
 import { Spinner } from '../primitives/Spinner';
 import { Badge } from '../primitives/Badge';
+import { Checkbox } from '../primitives/Checkbox';
 import { Toast, ToastProvider } from '../primitives/Toast';
 import { PasskeyButton } from './PasskeyButton';
 import { HydratedIsland } from '../HydratedIsland';
@@ -21,6 +22,11 @@ import {
 /**
  * Settings page: Account / Devices / Auth / Cache tabs.
  */
+export function parseExcludePaidSetting(value: string | undefined): boolean {
+  if (value === undefined) return true;
+  return !['0', 'false', 'off', 'no'].includes(value.trim().toLowerCase());
+}
+
 function SettingsPageInner() {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [credentials, setCredentials] = useState<Credential[]>([]);
@@ -33,6 +39,9 @@ function SettingsPageInner() {
   });
   const [ghAllowed, setGhAllowed] = useState('');
   const [cacheTtl, setCacheTtl] = useState('7');
+  const [excludePaid, setExcludePaid] = useState(true);
+  const [savingPaidPolicy, setSavingPaidPolicy] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [newPromptLabel, setNewPromptLabel] = useState('');
   const [newPromptContent, setNewPromptContent] = useState('');
 
@@ -40,7 +49,7 @@ function SettingsPageInner() {
     Promise.all([
       me().catch(() => null),
       listCredentials().catch(() => []),
-      getSettings().catch(() => []),
+      getSettings().catch((error: Error) => { setSettingsError(error.message); return []; }),
       listPrompts().catch(() => []),
       listModels().catch(() => []),
     ]).then(([u, creds, setts, proms, mods]) => {
@@ -51,6 +60,7 @@ function SettingsPageInner() {
       const ttl = setts.find(s => s.key === 'cache.responses.ttl_days')?.value;
       if (ttl) setCacheTtl(ttl);
       setGhAllowed(setts.find(s => s.key === 'github.allowed_logins')?.value ?? '');
+      setExcludePaid(parseExcludePaidSetting(setts.find(s => s.key === 'models.exclude_paid')?.value));
     }).finally(() => setLoading(false));
   }, []);
 
@@ -114,6 +124,23 @@ function SettingsPageInner() {
       showToast('Prompt created');
     } catch (e) {
       showToast((e as Error).message, 'danger');
+    }
+  }
+
+  async function handleExcludePaidChange(next: boolean) {
+    if (savingPaidPolicy) return;
+    const previous = excludePaid;
+    setSavingPaidPolicy(true);
+    setExcludePaid(next);
+    try {
+      await setSetting('models.exclude_paid', next ? '1' : '0');
+      setModels(await listModels().catch(() => next ? models.filter((m) => m.paid_required !== true) : models));
+      showToast(next ? 'Paid models excluded' : 'Paid models included');
+    } catch (e) {
+      setExcludePaid(previous);
+      showToast((e as Error).message, 'danger');
+    } finally {
+      setSavingPaidPolicy(false);
     }
   }
 
@@ -233,11 +260,25 @@ function SettingsPageInner() {
       label: 'Models',
       content: (
         <div className="space-y-6 mt-4">
+          <Card variant="default" className="p-6 space-y-3">
+            <Checkbox
+              id="models-exclude-paid"
+              label="Exclude paid"
+              checked={excludePaid}
+              disabled={user?.role !== 'owner' || savingPaidPolicy || settingsError !== null}
+              onCheckedChange={handleExcludePaidChange}
+            />
+            <p className="text-xs text-[var(--color-muted)]">
+              Hide and block models known to require paid billing. Enabled by default for this workspace; only the owner can change it. Unknown billing is labeled in the picker. This is not a spending cap on your Cloudflare account.
+            </p>
+            {settingsError && <p role="alert" className="text-xs text-[var(--color-danger)]">Settings could not be loaded. Reload to retry.</p>}
+          </Card>
+
           <Card variant="default" className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-[var(--color-text)]">Workers AI Models</p>
-                <p className="text-xs text-[var(--color-muted)] mt-1">{models.length} models synced</p>
+                <p className="text-xs text-[var(--color-muted)] mt-1">{models.length} models available</p>
               </div>
               <Button variant="outline" size="sm" loading={syncingModels} onClick={handleSyncModels}>
                 Sync now
@@ -247,7 +288,7 @@ function SettingsPageInner() {
               <div className="max-h-64 overflow-y-auto space-y-1">
                 {models.map(m => (
                   <div key={m.name} className="flex items-center justify-between py-1 border-b border-[var(--color-border)]">
-                    <span className="text-xs font-mono text-[var(--color-text)] truncate flex-1 mr-2">{m.name}</span>
+                    <span className="text-xs font-mono text-[var(--color-text)] truncate flex-1 mr-2">{m.paid_required ? '💲 ' : ''}{m.name}</span>
                     <Badge variant="muted" size="sm">{m.task}</Badge>
                   </div>
                 ))}
