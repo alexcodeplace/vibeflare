@@ -1,4 +1,4 @@
-/* Shared landing/non-chat task geometry. Active text and audio threads switch to Astryx ChatLayout. */
+/* Shared landing/non-chat task geometry. Active Text, Image and Audio threads switch to Astryx ChatLayout. */
 .vf-chat { min-height: 100%; height: auto; }
 .vf-chat-toolbar { display: grid; grid-template-columns: 356px minmax(0, 1fr); gap: 16px; min-height: 76px; }
 .vf-chat--conversation { height: 100%; min-height: 0; }
