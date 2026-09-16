@@ -31,6 +31,11 @@ for (const theme of ['dark', 'light'] as const) {
           expect(await visibleArt.count()).toBeGreaterThan(0);
           await expect.poll(() => visibleArt.evaluateAll(images => images.every(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
         }
+        if (route === '/login') {
+          const action = page.getByRole('button', { name: 'Sign in with passkey', exact: true });
+          await expect(action).toHaveCSS('background-image', /linear-gradient/);
+          await expect(action).toHaveCSS('color', 'rgb(255, 255, 255)');
+        }
         if (route === '/chat') {
           // Inspect painted output, not only a root token: the composer has its own surface.
           const composerBackground = await page.getByLabel('Message input').evaluate(editor => {
@@ -138,4 +143,22 @@ test('reduced motion disables decorative hover and keeps controls usable when st
   await starter.click();
   await expect(page.getByLabel('Message input')).toBeFocused();
   expect(errors).toEqual([]);
+});
+
+
+test('GitHub OAuth action keeps its handoff and receives the brand treatment', async ({ page, context, baseURL }) => {
+  await applyAuth(context, 'anonymous', baseURL!, '/login');
+  await page.route('**/auth/methods', route => route.fulfill({ json: {
+    passkey: false, github: true, github_flow: 'oauth', cf_access: false, setup_required: false,
+  } }));
+  // Exercise the real UI handoff without signing in to a third-party service.
+  await page.route('**/auth/github/oauth/start?purpose=login', route => route.fulfill({
+    contentType: 'text/html', body: '<p>OAuth handoff received</p>',
+  }));
+  await page.goto('/login');
+  const action = page.getByRole('button', { name: 'Sign in with GitHub', exact: true });
+  await expect(action).toHaveCSS('background-image', /linear-gradient/);
+  await expect(action).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await action.click();
+  await expect(page).toHaveURL(/\/auth\/github\/oauth\/start\?purpose=login$/);
 });

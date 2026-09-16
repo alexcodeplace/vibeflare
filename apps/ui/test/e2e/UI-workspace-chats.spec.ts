@@ -27,6 +27,13 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     // This passes while inference is deliberately paused, not just after a reply.
     await expect(chatLink).toBeVisible();
     await expect(chatLink).toHaveAttribute('aria-current', 'page');
+    const disclosure = sidebar.getByTestId('workspace-chats').locator('summary');
+    await disclosure.focus();
+    await page.keyboard.press('Space');
+    await expect(chatLink).not.toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Workspace', exact: true })).toBeVisible();
+    await page.keyboard.press('Space');
+    await expect(chatLink).toBeVisible();
     for (const menu of ['Workspace', 'History', 'Projects', 'Data', 'API Keys', 'Settings']) {
       await expect(sidebar.getByRole('link', { name: menu, exact: true })).toBeVisible();
     }

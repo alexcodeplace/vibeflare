@@ -1,9 +1,9 @@
 {
   "sourceRepository": "alexcodeplace/spargax-club",
-  "sourceDirectory": "/home/user/Projects/spargax/.worktrees/club-ui-astra-20260912-1450/public/assets/club",
-  "importedAt": "2026-09-12T15:27:24.564Z",
+  "sourceDirectory": "/home/user/Projects/spargax/apps/club/public/assets/club",
+  "importedAt": "2026-09-12T16:21:39.538Z",
   "sourceManifestSha256": "a44d1b8a69b899668ab598e508e29a9bc7062a7db79eb4264606a970e066a7b1",
   "assetCount": 128,
   "bytes": 539556,
-  "note": "Copied byte-for-byte from Club runtime assets. Canonical light/dark source paths and per-file hashes are preserved in the asset manifest. The source design worktree was uncommitted at import."
+  "note": "Copied byte-for-byte from Club runtime assets. Canonical light/dark source paths and per-file hashes are preserved in the asset manifest."
 }

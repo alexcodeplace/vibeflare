@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useChats, CHAT_NAVIGATION_EVENT } from '../../lib/api/chats';
-import { HydratedIsland } from '../HydratedIsland';
+import { HydratedIsland, useIslandHydrated } from '../HydratedIsland';
 
 function currentChatId(): string | null {
   return typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('chat_id');
 }
 
 function WorkspaceChatsInner() {
+  const hydrated = useIslandHydrated();
   const { data: chats = [], isError, refetch } = useChats();
   const [selected, setSelected] = useState<string | null>(null);
   useEffect(() => {
@@ -20,6 +21,8 @@ function WorkspaceChatsInner() {
     };
   }, []);
 
+  if (!hydrated) return null;
+
   if (isError) {
     return <button type="button" onClick={() => void refetch()} className="px-3 py-2 text-left text-xs text-[var(--color-muted)]">Retry loading chats</button>;
   }
@@ -27,7 +30,8 @@ function WorkspaceChatsInner() {
   if (!chats.length) return null;
 
   return (
-    <div data-testid="workspace-chats" className="min-w-0 mb-2">
+    <details data-testid="workspace-chats" className="vf-workspace-chats min-w-0 mb-2" open>
+      <summary className="vf-chat-history-toggle"><span>Recent chats</span><span className="vf-chat-count" aria-hidden="true">{chats.length}</span></summary>
       <a href="/chat" data-astro-reload className="block rounded-lg px-3 py-2 text-xs text-[var(--color-muted)] hover:text-[var(--color-text)]">+ New chat</a>
       <ul aria-label="Workspace chats" className="m-0 max-h-[40vh] list-none space-y-0.5 overflow-y-auto overscroll-contain p-0">
         {chats.map((chat) => (
@@ -46,7 +50,7 @@ function WorkspaceChatsInner() {
           </li>
         ))}
       </ul>
-    </div>
+    </details>
   );
 }
 

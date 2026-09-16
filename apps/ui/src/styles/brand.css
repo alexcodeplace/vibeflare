@@ -95,7 +95,7 @@ button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button:not(:disabled), a { touch-action: manipulation; }
 ::selection { background: #1175cd55; }
-:where(a, button, input, textarea, select, [tabindex]):focus-visible { outline: 3px solid var(--vf-link); outline-offset: 4px; }
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible { outline: 3px solid var(--vf-link); outline-offset: 4px; }
 :where(input, textarea, [contenteditable='true']) { caret-color: var(--vf-link); }
 .vf-skip-link { position: fixed; z-index: 200; inset-block-start: 12px; inset-inline-start: 20px; transform: translateY(-160%); border-radius: 12px; padding: 12px 18px; background: var(--color-surface); border: 1px solid var(--vf-link); }
 .vf-skip-link:focus { transform: none; }
@@ -204,6 +204,8 @@ button:not(:disabled), a { touch-action: manipulation; }
 .vf-auth-form h1 { font-size: 30px; font-weight: 500; letter-spacing: -.04em; line-height: 1.25; }
 .vf-auth-form h1 + p { margin-top: 12px; font-size: 13px; line-height: 1.8; }
 .vf-auth-form .vf-button { min-height: 48px; }
+.vf-auth-form .vf-auth-action { width: 100%; justify-content: center; padding-inline: 20px; border: 1px solid #7cafff80; border-radius: 12px; background: linear-gradient(115deg, var(--vf-blue), #064ccc); color: #fff; box-shadow: inset 0 1px 0 #ffffff33, 0 6px 18px #0b5ee51f; }
+.vf-auth-form .vf-auth-action:hover:not(:disabled) { box-shadow: inset 0 1px 0 #ffffff40, 0 8px 22px #0b5ee538; }
 .vf-auth-note { display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 9px; color: var(--color-text-tertiary); margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--vf-line); }
 .vf-auth-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; color: var(--color-text-tertiary); font-size: 10px; padding-top: 16px; }
 .vf-auth-footer > span:last-child { font-size: 9px; letter-spacing: .18em; }
@@ -299,3 +301,15 @@ button:not(:disabled), a { touch-action: manipulation; }
   .vf-starter { padding: 10px 8px; }
   .vf-auth-shell { padding-inline: 14px; }
 }
+
+/* Keep conversation history under Workspace without adding navigation listeners. */
+.vf-workspace-chats { margin: 8px 4px 12px; }
+.vf-chat-history-toggle { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 8px 12px; border-radius: 10px; color: var(--color-muted); cursor: pointer; list-style: none; font-size: 10px; touch-action: manipulation; }
+.vf-chat-history-toggle::-webkit-details-marker { display: none; }
+.vf-chat-history-toggle:hover { background: var(--vf-input); color: var(--color-text); }
+.vf-chat-count { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+.vf-chat-history-toggle::after { content: ''; height: 6px; width: 6px; border-inline-end: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); margin: 0 2px 3px 4px; }
+.vf-workspace-chats[open] > .vf-chat-history-toggle::after { transform: rotate(225deg); margin-bottom: -3px; }
+.vf-workspace-chats ul { margin-inline-start: 12px; padding-inline-start: 6px; border-inline-start: 1px solid var(--vf-line); }
+.vf-workspace-chats li a { min-height: 36px; padding-inline: 10px; font-size: 11px; }
+.vf-workspace-chats li a[aria-current='page'] { background: var(--vf-active); color: var(--vf-link); }

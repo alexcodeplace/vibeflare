@@ -141,7 +141,7 @@ export function GithubDeviceLogin({ mode, onSuccess }: GithubDeviceLoginProps) {
         )}
         <Button
           variant="outline"
-          className="w-full"
+          className="vf-auth-action w-full"
           leftIcon={<Icon name="Github" size="sm" />}
           onClick={handleStart}
         >
@@ -162,7 +162,7 @@ export function GithubDeviceLogin({ mode, onSuccess }: GithubDeviceLoginProps) {
       </p>
       <Button
         variant="outline"
-        className="w-full"
+        className="vf-auth-action w-full"
         leftIcon={<Icon name="ExternalLink" size="sm" />}
         onClick={() => window.open(verificationUri, '_blank', 'noopener')}
       >

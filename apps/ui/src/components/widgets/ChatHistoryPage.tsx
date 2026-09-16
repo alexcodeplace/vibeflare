@@ -6,7 +6,7 @@ import { Dialog } from '../primitives/Dialog';
 import { Spinner } from '../primitives/Spinner';
 import { Toast, ToastProvider } from '../primitives/Toast';
 import { Icon } from '../primitives/Icon';
-import { HydratedIsland } from '../HydratedIsland';
+import { HydratedIsland, useIslandHydrated } from '../HydratedIsland';
 import { useChats, useRenameChat, useDeleteChat } from '../../lib/api/chats';
 
 function relativeTime(ts: number): string {
@@ -23,6 +23,7 @@ function relativeTime(ts: number): string {
 }
 
 function ChatHistoryPageInner() {
+  const hydrated = useIslandHydrated();
   const { data: chats = [], isPending, isError } = useChats();
   const renameChat = useRenameChat();
   const deleteChat = useDeleteChat();
@@ -74,7 +75,7 @@ function ChatHistoryPageInner() {
   return (
     <ToastProvider>
       <div data-testid="history-page" className="space-y-4 max-w-2xl">
-        {isPending ? (
+        {!hydrated || isPending ? (
           <div className="flex justify-center py-8">
             <Spinner size="lg" />
           </div>

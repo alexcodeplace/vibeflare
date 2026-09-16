@@ -49,7 +49,7 @@ if (!check) {
     importedAt: new Date().toISOString(),
     sourceManifestSha256: sha256(manifestBytes),
     assetCount: seen.size, bytes: total,
-    note: 'Copied byte-for-byte from Club runtime assets. Canonical light/dark source paths and per-file hashes are preserved in the asset manifest. The source design worktree was uncommitted at import.'
+    note: 'Copied byte-for-byte from Club runtime assets. Canonical light/dark source paths and per-file hashes are preserved in the asset manifest.'
   }, null, 2) + '\n');
 } else {
   const provenance = JSON.parse(readFileSync(join(root, 'docs/design/club-asset-provenance.json')));

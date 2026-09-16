@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, createContext, useContext, useEffect, useState } from 'react';
 import { QueryClientProvider, HydrationBoundary, type DehydratedState } from '@tanstack/react-query';
 import { Theme } from '@astryxdesign/core/theme';
 import { neutralTheme } from '@astryxdesign/theme-neutral/built';
@@ -9,6 +9,13 @@ export interface HydratedIslandProps {
   dehydratedState?: DehydratedState;
 }
 
+// Independent Astro roots can finish loading in any order. Keep SSG and the
+// first browser render identical even when a sibling already filled the cache.
+const IslandHydrationContext = createContext(false);
+export function useIslandHydrated(): boolean {
+  return useContext(IslandHydrationContext);
+}
+
 type ThemeMode = 'light' | 'dark';
 
 function readThemeMode(): ThemeMode {
@@ -17,7 +24,7 @@ function readThemeMode(): ThemeMode {
 }
 
 /**
- * Shared provider for every page island. Astryx is the visual authority; the
+ * Shared provider for every page island. Spargax themes the Astryx components; the
  * observer keeps independently hydrated Astro islands on the same light/dark
  * mode when the global theme toggle updates <html>.
  */
@@ -42,7 +49,9 @@ export function HydratedIsland({ children, dehydratedState }: HydratedIslandProp
     <div data-vf-hydrated={hydrated ? 'true' : 'false'} style={{ display: 'contents' }}>
       <Theme theme={neutralTheme} mode={mode}>
         <QueryClientProvider client={client}>
-          <HydrationBoundary state={dehydratedState}>{children}</HydrationBoundary>
+          <IslandHydrationContext.Provider value={hydrated}>
+            <HydrationBoundary state={dehydratedState}>{children}</HydrationBoundary>
+          </IslandHydrationContext.Provider>
         </QueryClientProvider>
       </Theme>
     </div>
