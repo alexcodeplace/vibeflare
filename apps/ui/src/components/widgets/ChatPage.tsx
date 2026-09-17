@@ -13,7 +13,7 @@ import {
 import { BrandArtwork } from '../brand/BrandArtwork';
 import { Markdown } from '@astryxdesign/core/Markdown';
 import { TaskWorkspace, TASK_PRESENTATION } from './TaskWorkspace';
-import { FileDropzone } from './FileDropzone';
+import { ComposerFileImport } from './ComposerFileImport';
 import { readPromptFile, TEXT_FILE_ACCEPT, PROMPT_FILE_ACCEPT, MAX_TEXT_FILE_BYTES, MAX_IMPORTED_CHARACTERS, fileMatchesAccept } from '../../lib/file-input';
 import { AudioTranscribePanel } from './AudioTranscribePanel';
 import { EmbeddingSimilarityPanel } from './EmbeddingSimilarityPanel';
@@ -61,7 +61,6 @@ function ChatPageInner() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [readingFile, setReadingFile] = useState(false);
-  const [importedFileName, setImportedFileName] = useState<string | null>(null);
   const fileReadVersion = useRef(0);
   const fileReading = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -148,7 +147,6 @@ function ChatPageInner() {
     setConversationStarted(false);
     chatIdRef.current = null;
     setImageError(null);
-    setImportedFileName(null);
     fileReadVersion.current++;
     setInput('');
     setImagePrompt('');
@@ -178,7 +176,6 @@ function ChatPageInner() {
       const combined = previous.trim() ? `${previous.trim()}\n\n${text}` : text;
       if (combined.length > MAX_IMPORTED_CHARACTERS) throw new Error('The combined input exceeds 16,000 characters. Shorten it before importing more text.');
       if (task === 'text-to-image') setImagePrompt(combined); else setInput(combined);
-      setImportedFileName(file.name);
     } finally { fileReading.current = false; setReadingFile(false); }
   }
 
@@ -294,7 +291,6 @@ function ChatPageInner() {
     } finally {
       operationRef.current = false;
       setSending(false);
-      setImportedFileName(null);
       abortRef.current = null;
     }
   }
@@ -327,7 +323,6 @@ function ChatPageInner() {
       await loadHistory(id, controller.signal);
       if (controller.signal.aborted) return;
       setPendingImagePrompt(null);
-      setImportedFileName(null);
       notifyQuotaChanged();
     } catch (error) {
       if (!controller.signal.aborted) {
@@ -351,8 +346,14 @@ function ChatPageInner() {
   const setPrompt = isImageMode ? setImagePrompt : setInput;
   const submit = isImageMode ? generateImage : sendMessage;
   const isRunning = sending || generating;
+  const importLabel = isImageMode ? 'Import a written prompt' : isEmbeddingMode ? 'Import text to embed' : 'Import text into your message';
+  const importHint = isImageMode ? 'Drop a .txt or .md file · up to 64 KB' : 'Drop .txt, .md, .csv or .json · up to 64 KB';
   const promptComposer = (
     <div className="vf-composer-wrap" ref={composerRef}>
+      <ComposerFileImport key={activeTask} onFiles={importTextFile}
+        onError={message => notify(message, 'danger')} label={importLabel} hint={importHint}
+        accept={isImageMode ? PROMPT_FILE_ACCEPT : TEXT_FILE_ACCEPT} maxBytes={MAX_TEXT_FILE_BYTES}
+        disabled={busy || readingFile} />
       <ChatComposer value={prompt} onChange={setPrompt} onSubmit={submit}
         onStop={() => abortRef.current?.abort()} isStopShown={isRunning}
         isDisabled={loadingHistory} placeholder={info.prompt}
@@ -360,11 +361,6 @@ function ChatPageInner() {
           isDisabled={!model || isRunning || readingFile} aria-disabled={!model || isRunning || readingFile}
           onFiles={files => { void importTextFile(files).catch(error => notify(error instanceof Error ? error.message : 'File import failed.', 'danger')); }}
           pasteAsToken={false} style={composerInputStyle} />}
-        headerActions={<FileDropzone key={activeTask} compact onFiles={importTextFile}
-          label={isImageMode ? 'Import a written prompt' : isEmbeddingMode ? 'Import text to embed' : 'Import text into your message'}
-          hint={isImageMode ? 'Drop a .txt or .md file, or browse · up to 64 KB' : 'Drop .txt, .md, .csv or .json, or browse · up to 64 KB'}
-          accept={isImageMode ? PROMPT_FILE_ACCEPT : TEXT_FILE_ACCEPT} maxBytes={MAX_TEXT_FILE_BYTES}
-          disabled={busy || readingFile} selectedName={importedFileName} />}
         footerActions={<span className="vf-composer-operation">{isRunning ? (isImageMode ? 'Creating image…' : isEmbeddingMode ? 'Creating embeddings…' : 'Replying…') : isImageMode ? 'Generate an image' : isEmbeddingMode ? 'Create embeddings' : 'Send a message'}</span>} />
     </div>
   );

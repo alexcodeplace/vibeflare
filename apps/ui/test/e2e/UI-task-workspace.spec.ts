@@ -17,13 +17,38 @@ async function setup(page: Page) {
   await page.goto('/chat'); await waitForHydratedIsland(page, 'vibeflare-chat');
 }
 
-async function drop(page: Page, name: string, type: string, content: string) {
-  const data = await page.evaluateHandle(({ name, type, content }) => {
+async function fileTransfer(page: Page, name: string, type: string, content: string) {
+  return page.evaluateHandle(({ name, type, content }) => {
     const transfer = new DataTransfer(); transfer.items.add(new File([content], name, { type })); return transfer;
   }, { name, type, content });
+}
+
+async function drop(page: Page, name: string, type: string, content: string) {
+  const data = await fileTransfer(page, name, type, content);
   await page.getByTestId('file-dropzone').dispatchEvent('dragenter', { dataTransfer: data });
   await expect(page.getByTestId('file-dropzone')).toHaveAttribute('data-dragging', 'true');
   await page.getByTestId('file-dropzone').dispatchEvent('drop', { dataTransfer: data });
+  await data.dispose();
+}
+
+async function dropOnComposerPage(page: Page, name: string, type: string, content: string) {
+  const data = await fileTransfer(page, name, type, content);
+  await expect(page.getByTestId('composer-drop-overlay')).toHaveCount(0);
+  await page.locator('body').dispatchEvent('dragenter', { dataTransfer: data });
+  const overlay = page.getByTestId('composer-drop-overlay');
+  await expect(overlay).toBeVisible();
+  const overlayBox = await overlay.boundingBox();
+  const composerBox = await page.locator('.vf-composer-wrap').boundingBox();
+  expect(overlayBox).not.toBeNull(); expect(composerBox).not.toBeNull();
+  expect(overlayBox!.x).toBeGreaterThanOrEqual(composerBox!.x);
+  expect(overlayBox!.y).toBeGreaterThanOrEqual(composerBox!.y);
+  expect(overlayBox!.x + overlayBox!.width).toBeLessThanOrEqual(composerBox!.x + composerBox!.width + 1);
+  expect(overlayBox!.y + overlayBox!.height).toBeLessThan(composerBox!.y + composerBox!.height);
+  expect(overlayBox!.width).toBeGreaterThan(composerBox!.width * 0.85);
+  // Drop on the toolbar, deliberately outside the composer. Page-wide drag handling
+  // still consumes the file while the only visible target stays over the text area.
+  await page.locator('.vf-chat-toolbar').dispatchEvent('drop', { dataTransfer: data });
+  await expect(overlay).toHaveCount(0);
   await data.dispose();
 }
 
@@ -47,7 +72,22 @@ for (const theme of ['light', 'dark']) for (const width of [1440, 390, 320]) {
       toolbars.push((await page.locator('.vf-chat-toolbar').boundingBox())!);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       const overflow = await page.getByTestId('task-workspace').evaluate(el => el.scrollWidth > el.clientWidth + 1); expect(overflow).toBe(false);
-      await expect(page.getByTestId('file-dropzone')).toBeVisible();
+      if (tab === 'Audio') {
+        await expect(page.getByTestId('file-dropzone')).toBeVisible();
+        await expect(page.getByTestId('composer-file-trigger')).toHaveCount(0);
+      } else {
+        await expect(page.getByTestId('file-dropzone')).toHaveCount(0);
+        const addFile = page.getByTestId('composer-file-trigger');
+        await expect(addFile).toBeVisible();
+        await expect(page.getByTestId('composer-drop-overlay')).toHaveCount(0);
+        const addBox = await addFile.boundingBox();
+        const composerBox = await page.locator('.vf-composer-wrap').boundingBox();
+        expect(addBox).not.toBeNull(); expect(composerBox).not.toBeNull();
+        expect(addBox!.width).toBeLessThanOrEqual(32);
+        expect(addBox!.height).toBeLessThanOrEqual(32);
+        expect(addBox!.x).toBeGreaterThan(composerBox!.x + composerBox!.width - 50);
+        expect(addBox!.y).toBeLessThan(composerBox!.y + 24);
+      }
       if (tab === 'Embeddings') {
         await expect(page.getByTestId('task-heading')).toContainText('find content by meaning');
         await expect(page.getByTestId('task-heading')).toContainText('not a chat reply');
@@ -72,13 +112,26 @@ for (const theme of ['light', 'dark']) for (const width of [1440, 390, 320]) {
   });
 }
 
+test('Image composer uses a small plus picker instead of an always-visible dropzone', async ({ page }) => {
+  await setup(page);
+  await page.getByRole('tab', { name: 'Image', exact: true }).click();
+  await expect(page.getByRole('combobox')).toContainText(selectedModels.Image!);
+  await expect(page.getByTestId('file-dropzone')).toHaveCount(0);
+  await expect(page.getByTestId('composer-drop-overlay')).toHaveCount(0);
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByTestId('composer-file-trigger').click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({ name: 'prompt.md', mimeType: 'text/markdown', buffer: Buffer.from('A quiet observatory above the clouds.') });
+  await expect(page.getByLabel('Message input')).toContainText('A quiet observatory above the clouds.');
+});
+
 for (const tab of ['Text', 'Image', 'Embeddings']) {
   test(`${tab} consumes dropped text as actual model input, without sending on drop`, async ({ page }) => {
     await setup(page); await page.getByRole('tab', { name: tab, exact: true }).click();
     await expect(page.getByRole('combobox')).toContainText(selectedModels[tab]!);
     const calls: { path: string; body: any }[] = [];
     page.on('request', req => { if (new URL(req.url()).pathname.startsWith('/v1/') && req.method() === 'POST') calls.push({ path: new URL(req.url()).pathname, body: req.postDataJSON() }); });
-    await drop(page, 'brief.txt', 'text/plain', 'A small orange planet above a calm lake.');
+    await dropOnComposerPage(page, 'brief.txt', 'text/plain', 'A small orange planet above a calm lake.');
     await expect(page.getByLabel('Message input')).toContainText('A small orange planet above a calm lake.');
     expect(calls).toHaveLength(0);
     await page.getByRole('button', { name: 'Send', exact: true }).click();
