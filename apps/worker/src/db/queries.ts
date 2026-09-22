@@ -68,7 +68,9 @@ export async function insertUser(
 }
 
 export async function countUsers(db: D1Database): Promise<number> {
-  const row = await db.prepare('SELECT COUNT(*) as n FROM auth_users').first<{ n: number }>();
+  // Every caller only needs bootstrap existence. LIMIT 1 avoids billing a full
+  // auth_users table scan on public unauthenticated routes.
+  const row = await db.prepare('SELECT 1 as n FROM auth_users LIMIT 1').first<{ n: number }>();
   return row?.n ?? 0;
 }
 
