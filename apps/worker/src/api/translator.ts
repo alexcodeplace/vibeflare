@@ -1,5 +1,6 @@
 import { supportsAudioFile, LIVE_AUDIO_MESSAGE } from '@vibeflare/shared';
 import { estimateTokens } from '../ai/neurons';
+import { arrayBufferToBase64, base64ToArrayBuffer } from '../util/base64';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,10 +47,7 @@ async function imageUrlToBytes(url: string): Promise<ArrayBuffer> {
     // data:<mime>;base64,<data>
     const comma = url.indexOf(',');
     const b64 = url.slice(comma + 1);
-    const binary = atob(b64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return bytes.buffer;
+    return base64ToArrayBuffer(b64);
   }
   const res = await fetch(url);
   if (!res.ok) throw new Error(`image fetch failed: ${res.status}`);
@@ -327,10 +325,7 @@ export async function extractImageBuffer(out: unknown): Promise<ArrayBuffer> {
     const rec = out as Record<string, unknown> | null | undefined;
     const raw = rec?.image;
     if (typeof raw === 'string') {
-      const binary = atob(raw);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)!;
-      buf = bytes.buffer;
+      buf = base64ToArrayBuffer(raw);
     } else if (raw instanceof ArrayBuffer) {
       buf = raw;
     } else {
@@ -355,10 +350,7 @@ export function imageOutToOpenAI(
   if (b64) return { b64_json: b64 };
   // out.image is ArrayBuffer
   const buf = out.image as ArrayBuffer;
-  const bytes = new Uint8Array(buf);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
-  return { b64_json: btoa(binary) };
+  return { b64_json: arrayBufferToBase64(buf) };
 }
 
 // ── STT ──────────────────────────────────────────────────────────────────────
@@ -371,10 +363,7 @@ export function sttReqToWai(audio: ArrayBuffer, model = '', mime = 'audio/wav'):
     return { audio: { body: new Blob([audio], { type: mime }).stream(), contentType: mime }, detect_language: true };
   }
   if (model === '@cf/openai/whisper-large-v3-turbo') {
-    const bytes = new Uint8Array(audio);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
-    return { audio: btoa(binary), task: 'transcribe' };
+    return { audio: arrayBufferToBase64(audio), task: 'transcribe' };
   }
   return { audio: [...new Uint8Array(audio)] };
 }
@@ -428,13 +417,6 @@ export function ttsReqToWai(req: TtsRequest): Record<string, unknown> {
   if (req.voice) input.voice = req.voice;
   if (req.speed) input.speed = req.speed;
   return input;
-}
-
-function base64ToArrayBuffer(value: string): ArrayBuffer {
-  const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
 }
 
 export async function ttsOutToBinary(out: unknown): Promise<ArrayBuffer> {

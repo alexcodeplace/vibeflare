@@ -11,17 +11,11 @@ import { runner } from '../ai/dispatch';
 import { classifyUpstreamError } from '../ai/errors';
 import { putFile } from '../files/r2';
 import { newId } from '../util/id';
+import { arrayBufferToBase64 } from '../util/base64';
 
 type C = Context<{ Bindings: Env; Variables: Variables }>;
 
 const INLINE_SIZE_LIMIT = 100 * 1024; // 100KB
-
-function abToB64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
-  return btoa(binary);
-}
 
 export async function handle(c: C): Promise<Response> {
   const start = Date.now();
@@ -82,7 +76,7 @@ export async function handle(c: C): Promise<Response> {
         const stored = await storeHistoryFile(env, userId, 'image', `${nanoid(8)}.png`, 'image/png', imgBuf);
         saved.push(stored);
         results.push(body.response_format === 'b64_json'
-          ? { b64_json: abToB64(imgBuf) }
+          ? { b64_json: arrayBufferToBase64(imgBuf) }
           : { url: `${new URL(c.req.url).origin}/v1/files/${stored.file.id}` });
       } else if (forceUrl) {
         const filename = `${nanoid(8)}.png`;
@@ -94,7 +88,7 @@ export async function handle(c: C): Promise<Response> {
         ).bind(fileId, userId, key, filename, 'image/png', imgBuf.byteLength, 'image-gen', Date.now(), expiresAt).run();
         results.push({ url: `https://${host}/v1/files/${fileId}` });
       } else {
-        results.push({ b64_json: abToB64(imgBuf) });
+        results.push({ b64_json: arrayBufferToBase64(imgBuf) });
       }
     }
   } catch (e) {
