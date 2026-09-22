@@ -5,6 +5,12 @@ import { getApiKeyByHash, touchApiKeyLastUsed } from '../db/queries';
 import { readSession } from './session';
 import { verifyAccessJWT } from './access';
 
+export const API_KEY_LAST_USED_WRITE_INTERVAL_MS = 60 * 60 * 1000;
+
+export function apiKeyLastUsedNeedsWrite(lastUsedAt: number | null, now: number): boolean {
+  return lastUsedAt === null || now - lastUsedAt >= API_KEY_LAST_USED_WRITE_INTERVAL_MS;
+}
+
 export async function requireApiKey(c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) {
   // Same-origin browser requests may use session cookies instead of an API key.
   // They must send the x-vf-browser: 1 header.
@@ -45,6 +51,9 @@ export async function requireApiKey(c: Context<{ Bindings: Env; Variables: Varia
   }
   c.set('apiKey', row);
   c.set('userId', row.user_id);
-  c.executionCtx.waitUntil(touchApiKeyLastUsed(c.env.DB, row.id, Date.now()));
+  const now = Date.now();
+  if (apiKeyLastUsedNeedsWrite(row.last_used_at, now)) {
+    c.executionCtx.waitUntil(touchApiKeyLastUsed(c.env.DB, row.id, now));
+  }
   await next();
 }
