@@ -7,6 +7,11 @@ compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
+# Bootstrap the daily maintenance Durable Object independently of request traffic.
+# Hourly is intentionally sparse but bounds recovery after a fresh deployment.
+[triggers]
+crons = ["0 * * * *"]
+
 [observability]
 enabled = true
 

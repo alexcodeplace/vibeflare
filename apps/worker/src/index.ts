@@ -79,15 +79,12 @@ export { QuotaCounter } from './quota/do';
 export { AuthRateLimiter } from './auth/ratelimit';
 export { CronScheduler } from './crons/scheduler';
 
-let arming: Promise<void> | null = null;
-
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext) {
-    arming ??= ensureCronArmed(env).catch((e) => {
-      arming = null;
-      console.error('[cron] arm failed:', e);
-    });
-    await arming;
     return app.fetch(req, env, ctx);
   },
-};
+
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(ensureCronArmed(env));
+  },
+} satisfies ExportedHandler<Env>;
