@@ -86,7 +86,7 @@ export class CronScheduler implements DurableObject {
   }
 }
 
-/** Idempotent; safe to call on every request. Arms the schedule after a fresh deploy. */
+/** Idempotent bootstrap/recovery hook for the Worker scheduled trigger. */
 export async function ensureCronArmed(env: Env): Promise<void> {
   const stub = env.CRON.get(env.CRON.idFromName('singleton'));
   await stub.fetch('https://cron/arm');
