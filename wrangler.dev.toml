@@ -3,6 +3,7 @@
 # Deployed only by .github/workflows/deploy-dev.yml, which fails closed unless the
 # target is account f534e78871386f9ba3ca05944abfc8c2 and Worker vibeflare-dev.
 name = "vibeflare-dev"
+account_id = "f534e78871386f9ba3ca05944abfc8c2"
 main = "apps/worker/src/index.ts"
 compatibility_date = "2026-09-11"
 compatibility_flags = ["nodejs_compat"]
