@@ -1,0 +1,8 @@
+{
+  "name": "@spargax-security/http-cache-semantics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Private security backport of http-cache-semantics 4.2.0; not an upstream release",
+  "main": "index.js",
+  "license": "BSD-2-Clause"
+}

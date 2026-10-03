@@ -14,3 +14,6 @@ overrides:
   svgo: 4.1.0
   browserslist: 4.28.7
   '@babel/core': 7.29.6
+
+  http-cache-semantics: file:vendor/security/http-cache-semantics
+  braces: file:vendor/security/braces
