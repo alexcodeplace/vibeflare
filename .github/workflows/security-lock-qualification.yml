@@ -37,7 +37,7 @@ jobs:
       - name: Generate a candidate lock without weakening the release frozen-install gate
         run: |
           mkdir -p security-qualification
-          printf '%s\n' "$GITHUB_SHA" > security-qualification/source-sha.txt
+          git rev-parse HEAD > security-qualification/source-sha.txt
           pnpm install --lockfile-only --ignore-scripts
           cp pnpm-lock.yaml security-qualification/pnpm-lock.yaml
       - name: Prove frozen installation and installed-consumer security contracts

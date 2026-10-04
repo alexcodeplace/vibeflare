@@ -1,0 +1,12 @@
+{
+  "source_commit": "9225e50272215ad67dcf25c7509ec2395ffe099e",
+  "workflow_run": 37164560713,
+  "workflow_job": 111324725407,
+  "artifact_id": 11288602751,
+  "artifact_sha256": "2e914acd84c59c5f4a872acf32bdfa635ef478ccaf0224565be982c25726bffe",
+  "lock_sha256": "81c484b39d8ec8ebf4f536416a16fa557a23683c1177bf9486909604aefbd616",
+  "frozen_install": "passed",
+  "installed_backport_regression_tests": "passed",
+  "unchanged_pnpm_production_audit": "passed",
+  "full_release_gate": "must pass after committing this candidate lock"
+}
