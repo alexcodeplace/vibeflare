@@ -1,0 +1,56 @@
+name: Security lock qualification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/security-lock-qualification.yml
+      - package.json
+      - pnpm-workspace.yaml
+      - pnpm-lock.yaml
+      - vendor/security/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-lock-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    name: Qualify dependency lock and installed security backports
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: vibeflare-arc-k3s
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: 22
+      - name: Generate a candidate lock without weakening the release frozen-install gate
+        run: |
+          mkdir -p security-qualification
+          printf '%s\n' "$GITHUB_SHA" > security-qualification/source-sha.txt
+          pnpm install --lockfile-only --ignore-scripts
+          cp pnpm-lock.yaml security-qualification/pnpm-lock.yaml
+      - name: Prove frozen installation and installed-consumer security contracts
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --ignore-scripts
+          node --test vendor/security/backports.test.mjs | tee security-qualification/backports-tests.log
+          pnpm audit --prod --audit-level=high --json > security-qualification/audit.json
+      - name: Retain lock candidate and real test outcomes for review
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: security-lock-qualification-${{ github.event.pull_request.head.sha }}
+          path: security-qualification/
+          if-no-files-found: error
+          retention-days: 3
