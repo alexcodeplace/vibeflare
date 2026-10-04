@@ -68,11 +68,26 @@ jobs:
         run: printf '%s' "$SESSION_SECRET" | pnpm --filter @vibeflare/worker exec wrangler secret put SESSION_SECRET --config ../../wrangler.dev.toml
       - name: Verify development API health and database-backed root routing
         run: |
+          # The check runs immediately after the upload and must tolerate
+          # workers.dev propagation without weakening the contract: a bounded
+          # two-minute retry window, then the same hard requirement.
           node --input-type=module <<'JS'
           const origin = 'https://vibeflare-dev.spargax.workers.dev';
-          const response = await fetch(`${origin}/health`, { redirect: 'error', signal: AbortSignal.timeout(30000) });
-          if (response.status !== 200 || (await response.json()).ok !== true) throw new Error('Development API health contract failed');
-          const root = await fetch(origin, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
-          if (root.status !== 302 || !['/setup', '/login'].includes(root.headers.get('location'))) throw new Error('Development database-backed root routing failed');
-          console.log('Development API health and database-backed root routing verified');
+          const deadline = Date.now() + 120000;
+          for (const attempt of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
+            const response = await fetch(`${origin}/health`, { redirect: 'error', signal: AbortSignal.timeout(30000) });
+            if (response.status === 200 && (await response.json()).ok === true) {
+              const root = await fetch(origin, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
+              if (root.status === 302 && ['/setup', '/login'].includes(root.headers.get('location'))) {
+                console.log('Development API health and database-backed root routing verified');
+                process.exit(0);
+              }
+              console.log(`attempt ${attempt}: root routing not ready (${root.status})`);
+            } else {
+              console.log(`attempt ${attempt}: health not ready (${response.status})`);
+            }
+            if (Date.now() >= deadline) throw new Error('Development API health contract failed');
+            await new Promise(resolve => setTimeout(resolve, 10000));
+          }
+          throw new Error('Development API health contract failed');
           JS
