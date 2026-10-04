@@ -12,7 +12,7 @@
     "cli:build": "pnpm --filter @vibeflare/cli build",
     "validate:wrangler": "bun tools/validate-generated-wrangler.ts",
     "release:gate": "pnpm build:all && pnpm validate:wrangler && pnpm validate:deploy-button && pnpm security:audit && pnpm notices:check && pnpm test && pnpm --filter @vibeflare/ui test:e2e",
-    "security:audit": "pnpm audit --prod --audit-level=high",
+    "security:audit": "node --test vendor/security/backports.test.mjs && pnpm audit --prod --audit-level=high",
     "release:verify": "bash tools/run-release-verification.sh",
     "release:archive": "bash tools/build-release-archive.sh",
     "notices:generate": "node tools/third-party-notices.mjs",

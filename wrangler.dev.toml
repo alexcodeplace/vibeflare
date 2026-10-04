@@ -1,0 +1,62 @@
+# Development environment for the cloudflare@spargax.com account migration
+# (docs/plans/2026-10-01-cloudflare-account-migration.md in alexcodeplace/vibeclub).
+# Deployed only by .github/workflows/deploy-dev.yml, which fails closed unless the
+# target is account f534e78871386f9ba3ca05944abfc8c2 and Worker vibeflare-dev.
+name = "vibeflare-dev"
+account_id = "f534e78871386f9ba3ca05944abfc8c2"
+main = "apps/worker/src/index.ts"
+compatibility_date = "2026-09-11"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[vars]
+RP_NAME = "VibeFlare"
+AUTH_MODE = "standalone"
+RP_ID = "vibeflare-dev.spargax.workers.dev"
+RP_ORIGIN = "https://vibeflare-dev.spargax.workers.dev"
+CF_ACCOUNT_ID = "f534e78871386f9ba3ca05944abfc8c2"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vibeflare-dev-db"
+database_id = "fe869f1a-3410-4674-af44-2ec8e97b640d"
+migrations_dir = "apps/worker/src/db/migrations"
+
+[ai]
+binding = "AI"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "vibeflare-dev-files"
+
+[assets]
+binding = "ASSETS"
+directory = "apps/ui/dist"
+not_found_handling = "none"
+run_worker_first = ["/", "/signup", "/signup/*"]
+
+[durable_objects]
+bindings = [
+  { name = "QUOTA", class_name = "QuotaCounter" },
+  { name = "AUTH_RL", class_name = "AuthRateLimiter" },
+  { name = "CRON", class_name = "CronScheduler" },
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["QuotaCounter"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AuthRateLimiter"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["CronScheduler"]

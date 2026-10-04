@@ -1,0 +1,18 @@
+{
+  "schema": "private-security-backport-v1",
+  "upstream": {
+    "name": "http-cache-semantics",
+    "version": "4.2.0",
+    "source": "https://registry.npmjs.org/http-cache-semantics/4.2.0",
+    "files": {
+      "index.js": "01b7d66c854b2fe53ac05c98feb6e0d64722ab8898a778e2d2426a8b468d178f",
+      "LICENSE": "ab868ad5a2ef5068560d9cd3b2180ec63c140bb4c5cae1ba779d300a0ac74fa3"
+    }
+  },
+  "advisory": "GHSA-ch52-4w7c-c8xp",
+  "fork_name": "@spargax-security/http-cache-semantics",
+  "fork_version": "0.1.0",
+  "patched_files": {
+    "index.js": "626f636a0e3b88c2186dcad00bc8a6a37aba111656df32ecf1d1e7407f7a461e"
+  }
+}

@@ -86,7 +86,7 @@ jobs:
     name: VibeFlare runner readiness
     # Never execute fork-provided code on the persistent private host.
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, x64, vibeflare-gate]
+    runs-on: vibeflare-arc-k3s
     timeout-minutes: 5
     steps:
       - name: Checkout
