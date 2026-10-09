@@ -73,14 +73,6 @@ jobs:
       - name: E2E
         run: pnpm --filter @vibeflare/ui run test:e2e
 
-      - name: Retain browser verification evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: browser-evidence
-          path: apps/ui/test-results/
-          if-no-files-found: warn
-          retention-days: 3
 
   runner-readiness:
     name: VibeFlare runner readiness
