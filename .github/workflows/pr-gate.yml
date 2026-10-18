@@ -62,7 +62,7 @@ jobs:
       # Public repository: GitHub cannot resolve the private Overdeck action.
       # Consume the same MIT Moon engine through pinned public upstream.
       - name: Prepare pinned public Moon toolchain
-        uses: moonrepo/setup-toolchain@234d6bb3d227f8c0647841c8b1266b9cb94c1c23
+        uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095
         with:
           moon-version: '2.6.2'
           cache: 'false'

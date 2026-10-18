@@ -5,7 +5,7 @@ const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8'
 test('VibeFlare keeps full PR gate and unchanged browser/security evidence with Moon', () => {
   const w = read('.github/workflows/pr-gate.yml');
   const g = JSON.parse(read('moon.yml'));
-  assert.ok(w.includes('moonrepo/setup-toolchain@234d6bb3d227f8c0647841c8b1266b9cb94c1c23'));
+  assert.ok(w.includes('moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095'));
   assert.doesNotMatch(w, /uses: alexcodeplace\/overdeck\/modules\/ci\/moon@/);
   assert.ok(w.includes("moon-version: '2.6.2'"));
   assert.ok(w.includes("cache: 'false'"));
