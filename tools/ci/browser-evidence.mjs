@@ -4,7 +4,10 @@ import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-const MAX_FILES = 32, MAX_FILE_BYTES = 4 * 1024 * 1024, MAX_TOTAL_BYTES = 16 * 1024 * 1024;
+// The full visual matrix has more than32 PNGs even when every test passes.
+// Allow its complete inventory while keeping the same16MiB total/4MiB per-file
+// byte bounds. No screenshot bytes are sampled, truncated or silently omitted.
+const MAX_FILES = 256, MAX_FILE_BYTES = 4 * 1024 * 1024, MAX_TOTAL_BYTES = 16 * 1024 * 1024;
 const repository = resolve(new URL('../..', import.meta.url).pathname);
 const root = resolve(process.argv[2] ?? join(repository, 'apps/ui/test-results'));
 const fail = message => { console.error('VIBEFLARE_BROWSER_EVIDENCE_ERROR ' + message); process.exitCode = 1; };

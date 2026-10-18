@@ -62,3 +62,20 @@ test('an Actions source mismatch refuses to manufacture an evidence receipt', t 
   assert.match(result.stderr, /Evidence source\/run\/attempt differs/);
   assert.doesNotMatch(result.stdout, /VIBEFLARE_BROWSER_EVIDENCE_V1/);
 });
+
+test('a complete visual matrix can retain more than32 small PNGs without raising its byte budget', t => {
+  const f = fixture(t);
+  for (let n = 0; n < 64; n++) writeFileSync(join(f.dir, 'matrix-' + n + '.png'), sample);
+  const result = f.run(); assert.equal(result.status, 0, result.stderr);
+  const first = result.stdout.split('\n')[0];
+  const manifest = JSON.parse(first.replace(/^VIBEFLARE_BROWSER_EVIDENCE_V1 /, ''));
+  assert.equal(manifest.files.length, 64);
+  assert.equal(manifest.files.reduce((sum, file) => sum + file.bytes, 0), sample.length * 64);
+});
+test('the finite screenshot inventory bound still refuses excessive entries', t => {
+  const f = fixture(t);
+  for (let n = 0; n < 257; n++) writeFileSync(join(f.dir, 'matrix-' + n + '.png'), sample);
+  const result = f.run(); assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /file cap exceeded/);
+  assert.doesNotMatch(result.stdout, /VIBEFLARE_BROWSER_EVIDENCE_V1/);
+});
