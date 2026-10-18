@@ -19,6 +19,14 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      MOON_FORCE: 'true'
+      MOON_NO_ACTIONS: 'true'
+      MOON_CONCURRENCY: '1'
+      MOON_RETRY_COUNT: '0'
+      MOON_BASE: ${{ github.sha }}
+      MOON_HEAD: ${{ github.sha }}
+      PROTO_AUTO_INSTALL: 'false'
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -39,7 +47,7 @@ jobs:
       - name: Workflow contract
         run: |
           node tools/check-offload-workflow.mjs .github/workflows/pr-gate.yml
-          node --test tools/moon-ci-contract.test.mjs
+          node --test tools/moon-ci-contract.test.mjs tools/browser-evidence.test.mjs
           node --test tools/browser-evidence.test.mjs
 
       - name: Setup pinned Bun
@@ -52,8 +60,15 @@ jobs:
         # the per-job _temp dir — without this the store is wiped every run.
         run: pnpm install --frozen-lockfile --store-dir "$RUNNER_TOOL_CACHE/pnpm-store"
 
-      - name: Prepare shared Moon CI primitive
-        uses: alexcodeplace/overdeck/modules/ci/moon@65b559292d51f13f2fcb7c2b3a4a6333cea6dd15
+      # Public repository: GitHub cannot resolve the private Overdeck action.
+      # Consume the same MIT Moon engine through pinned public upstream.
+      - name: Prepare pinned public Moon toolchain
+        uses: moonrepo/setup-toolchain@234d6bb3d227f8c0647841c8b1266b9cb94c1c23
+        with:
+          moon-version: '2.6.2'
+          cache: 'false'
+          auto-install: 'false'
+          auto-setup: 'false'
 
       # Hosted runners are disposable; install the real browser system dependencies.
       - name: Install Playwright browsers

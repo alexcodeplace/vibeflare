@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 const script = new URL('./ci/browser-evidence.mjs', import.meta.url).pathname;
+const source = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 const sample = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('synthetic-image')]);
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'vibeflare-browser-evidence-'));
   t.after(() => rmSync(dir, { force: true, recursive: true }));
   return { dir, run: () => spawnSync(process.execPath, [script, dir],
-    { encoding: 'utf8', env: { ...process.env, GITHUB_SHA: 'a'.repeat(40) }, timeout: 5000 }) };
+    { encoding: 'utf8', env: { ...process.env, GITHUB_SHA: source, GITHUB_RUN_ID: '12345', GITHUB_RUN_ATTEMPT: '2' }, timeout: 5000 }) };
 }
 test('missing optional screenshot directory has a truthful non-evidence status', t => {
   const f = fixture(t);
@@ -32,7 +33,9 @@ test('lossless PNG frames are reconstructable by path and SHA without hosted art
   const bytes = Buffer.from(frames.map(frame => frame.data).join(''), 'base64');
   assert.deepEqual(bytes, sample);
   assert.equal(manifest.files[0].sha256, createHash('sha256').update(sample).digest('hex'));
-  assert.equal(manifest.source, 'a'.repeat(40));
+  assert.equal(manifest.source, source);
+  assert.equal(manifest.runId, '12345');
+  assert.equal(manifest.attempt, '2');
 });
 test('symlinks and over-budget evidence refuse without false success', t => {
   const f = fixture(t);
@@ -44,4 +47,18 @@ test('symlinks and over-budget evidence refuse without false success', t => {
   const result = f.run();
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /cap exceeded/);
+});
+
+test('an Actions source mismatch refuses to manufacture an evidence receipt', t => {
+  const f = fixture(t);
+  mkdirSync(join(f.dir, 'case'));
+  writeFileSync(join(f.dir, 'case/screenshot.png'), sample);
+  const result = spawnSync(process.execPath, [script, f.dir], {
+    encoding: 'utf8', timeout: 5000, env: { ...process.env,
+      GITHUB_ACTIONS: 'true', GITHUB_SHA: 'a'.repeat(40),
+      GITHUB_RUN_ID: '12345', GITHUB_RUN_ATTEMPT: '2' },
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Evidence source\/run\/attempt differs/);
+  assert.doesNotMatch(result.stdout, /VIBEFLARE_BROWSER_EVIDENCE_V1/);
 });
