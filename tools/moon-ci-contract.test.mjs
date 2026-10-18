@@ -42,3 +42,11 @@ test('VibeFlare keeps full PR gate and unchanged browser/security evidence with 
   assert.ok(read('tools/ci/browser-evidence.mjs').includes('Evidence source/run/attempt differs'));
 
 });
+
+test('security qualification keeps real frozen install and audit with policy-permitted evidence', () => {
+  const w = read('.github/workflows/security-lock-qualification.yml');
+  assert.ok(w.includes('pnpm install --frozen-lockfile --ignore-scripts'));
+  assert.ok(w.includes('pnpm audit --prod --audit-level=high --json'));
+  assert.ok(w.includes('node tools/ci/security-evidence.mjs'));
+  assert.doesNotMatch(w, /uses: actions\/upload-artifact@/);
+});
