@@ -116,3 +116,31 @@ test('normal alternatives, ranges, nested groups and escaped literals retain com
   assert.equal(regex.test('src/three.js'), false);
   assert.doesNotThrow(() => braces.parse('\\{'.repeat(500)));
 });
+
+
+test('actual Astro toolchain resolves patched source-map-js and preserves normal mappings', () => {
+  const vite = createRequire(astro.resolve('vite/package.json'));
+  const postcss = createRequire(vite.resolve('postcss/package.json'));
+  const info = JSON.parse(readFileSync(postcss.resolve('source-map-js/package.json'), 'utf8'));
+  assert.equal(info.version, '1.2.2');
+  const { SourceMapGenerator, SourceMapConsumer } = postcss('source-map-js');
+  const map = new SourceMapGenerator({ file: 'fixture.js' });
+  map.addMapping({ generated: { line: 1, column: 0 }, source: 'fixture.ts', original: { line: 2, column: 3 } });
+  const decoded = new SourceMapConsumer(map.toJSON());
+  assert.deepEqual(decoded.originalPositionFor({ line: 1, column: 0 }),
+    { source: 'fixture.ts', line: 2, column: 3, name: null });
+});
+
+test('actual Astro image dependency contains patched librsvg and preserves SVG rendering', async () => {
+  const sharp = astro('sharp');
+  // sharp exposes its version through this documented public API; its package
+  // manifest is deliberately not exported. Inspect the loaded native consumer.
+  assert.equal(sharp.versions.sharp, '0.35.5');
+  const rsvg = String(sharp.versions.rsvg ?? '').split('.').map(Number);
+  assert.ok(rsvg.length >= 3 && (rsvg[0] > 2 || rsvg[0] === 2 &&
+    (rsvg[1] > 63 || rsvg[1] === 63 && rsvg[2] >= 2)), 'patched librsvg must be in the actual binary');
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="2" height="2" fill="red"/></svg>');
+  const image = await sharp(svg).png().toBuffer();
+  const metadata = await sharp(image).metadata();
+  assert.equal(metadata.width, 2); assert.equal(metadata.height, 2); assert.equal(metadata.format, 'png');
+});
