@@ -1,0 +1,6 @@
+{
+  "extends": "./overdeck/workspace.yml",
+  "projects": {
+    "repo": "."
+  }
+}

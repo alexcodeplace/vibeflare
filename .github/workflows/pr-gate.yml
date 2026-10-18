@@ -37,7 +37,9 @@ jobs:
           node-version: 22
 
       - name: Workflow contract
-        run: node tools/check-offload-workflow.mjs .github/workflows/pr-gate.yml
+        run: |
+          node tools/check-offload-workflow.mjs .github/workflows/pr-gate.yml
+          node --test tools/moon-ci-contract.test.mjs
 
       - name: Setup pinned Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -49,12 +51,15 @@ jobs:
         # the per-job _temp dir — without this the store is wiped every run.
         run: pnpm install --frozen-lockfile --store-dir "$RUNNER_TOOL_CACHE/pnpm-store"
 
+      - name: Prepare shared Moon CI primitive
+        uses: alexcodeplace/overdeck/modules/ci/moon@c8508f8fbd844143c559c7e616c5dcfea8db9e3b
+
       # Hosted runners are disposable; install the real browser system dependencies.
       - name: Install Playwright browsers
         run: pnpm --filter @vibeflare/ui exec playwright install --with-deps chromium
 
       - name: Build
-        run: pnpm run build
+        run: moon run repo:build
 
       - name: Verify canonical logo assets
         run: node tools/verify-logo-assets.mjs
@@ -66,12 +71,12 @@ jobs:
         run: pnpm security:audit
 
       - name: Test
-        run: pnpm run test
+        run: moon run repo:unit
 
       # The playwright config self-starts the app via its webServer block, so no service needs to be
       # stood up around this step.
       - name: E2E
-        run: pnpm --filter @vibeflare/ui run test:e2e
+        run: moon run repo:e2e
 
       - name: Retain browser verification evidence
         if: always()

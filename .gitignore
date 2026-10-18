@@ -69,3 +69,6 @@ wrangler.local.toml
 release-artifacts/
 
 !apps/worker/local-secrets.example
+
+.moon/overdeck/
+.moon/cache/

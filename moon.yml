@@ -1,0 +1,38 @@
+{
+  "language": "bash",
+  "toolchains": {
+    "default": "system"
+  },
+  "workspace": {
+    "inheritedTasks": {
+      "include": [
+        "verify"
+      ]
+    }
+  },
+  "tasks": {
+    "build": {
+      "command": [
+        "pnpm",
+        "run",
+        "build"
+      ]
+    },
+    "unit": {
+      "command": [
+        "pnpm",
+        "run",
+        "test"
+      ]
+    },
+    "e2e": {
+      "command": [
+        "pnpm",
+        "--filter",
+        "@vibeflare/ui",
+        "run",
+        "test:e2e"
+      ]
+    }
+  }
+}
