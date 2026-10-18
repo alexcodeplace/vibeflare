@@ -132,9 +132,10 @@ test('actual Astro toolchain resolves patched source-map-js and preserves normal
 });
 
 test('actual Astro image dependency contains patched librsvg and preserves SVG rendering', async () => {
-  const info = JSON.parse(readFileSync(astro.resolve('sharp/package.json'), 'utf8'));
-  assert.equal(info.version, '0.35.5');
   const sharp = astro('sharp');
+  // sharp exposes its version through this documented public API; its package
+  // manifest is deliberately not exported. Inspect the loaded native consumer.
+  assert.equal(sharp.versions.sharp, '0.35.5');
   const rsvg = String(sharp.versions.rsvg ?? '').split('.').map(Number);
   assert.ok(rsvg.length >= 3 && (rsvg[0] > 2 || rsvg[0] === 2 &&
     (rsvg[1] > 63 || rsvg[1] === 63 && rsvg[2] >= 2)), 'patched librsvg must be in the actual binary');
