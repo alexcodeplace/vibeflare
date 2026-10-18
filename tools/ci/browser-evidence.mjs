@@ -33,7 +33,7 @@ function collect(dir, output) {
       if (!bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')))
         throw new Error('non-PNG browser evidence');
       const pathName = relative(root, path).split('\\').join('/');
-      if (!pathName || pathName.startsWith('../') || /[\\r\\n]/.test(pathName))
+      if (!pathName || pathName.startsWith('../') || /[\r\n]/.test(pathName))
         throw new Error('unsafe browser evidence path');
       output.files.push({ path: pathName,
         sha256: createHash('sha256').update(bytes).digest('hex'), bytes });

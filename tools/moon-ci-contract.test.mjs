@@ -35,7 +35,7 @@ test('VibeFlare keeps full PR gate and unchanged browser/security evidence with 
   assert.ok(w.includes('runs-on: ubuntu-24.04'));
   assert.ok(w.includes('timeout-minutes: 45'));
   assert.ok(w.includes('node --test tools/moon-ci-contract.test.mjs tools/browser-evidence.test.mjs'));
-  assert.ok(w.includes('node --test tools/browser-evidence.test.mjs'));
+  assert.equal((w.match(/node --test tools\/browser-evidence\.test\.mjs/g) ?? []).length, 0);
   assert.doesNotMatch(w, /uses: actions\/upload-artifact@/);
   assert.ok(read('apps/ui/playwright.config.ts').includes('screenshot: "only-on-failure"'));
   assert.ok(read('tools/ci/browser-evidence.mjs').includes('GITHUB_RUN_ATTEMPT'));

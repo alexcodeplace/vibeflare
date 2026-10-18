@@ -48,7 +48,6 @@ jobs:
         run: |
           node tools/check-offload-workflow.mjs .github/workflows/pr-gate.yml
           node --test tools/moon-ci-contract.test.mjs tools/browser-evidence.test.mjs
-          node --test tools/browser-evidence.test.mjs
 
       - name: Setup pinned Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
