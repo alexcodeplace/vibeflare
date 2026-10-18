@@ -40,6 +40,7 @@ jobs:
         run: |
           node tools/check-offload-workflow.mjs .github/workflows/pr-gate.yml
           node --test tools/moon-ci-contract.test.mjs
+          node --test tools/browser-evidence.test.mjs
 
       - name: Setup pinned Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -52,7 +53,7 @@ jobs:
         run: pnpm install --frozen-lockfile --store-dir "$RUNNER_TOOL_CACHE/pnpm-store"
 
       - name: Prepare shared Moon CI primitive
-        uses: alexcodeplace/overdeck/modules/ci/moon@c8508f8fbd844143c559c7e616c5dcfea8db9e3b
+        uses: alexcodeplace/overdeck/modules/ci/moon@65b559292d51f13f2fcb7c2b3a4a6333cea6dd15
 
       # Hosted runners are disposable; install the real browser system dependencies.
       - name: Install Playwright browsers
@@ -78,14 +79,11 @@ jobs:
       - name: E2E
         run: moon run repo:e2e
 
+      # The repository policy denies actions/upload-artifact. Retain
+      # real failed-browser screenshots as bounded, checked log frames.
       - name: Retain browser verification evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: browser-evidence
-          path: apps/ui/test-results/
-          if-no-files-found: warn
-          retention-days: 3
+        run: node tools/ci/browser-evidence.mjs
 
   runner-readiness:
     name: VibeFlare runner readiness

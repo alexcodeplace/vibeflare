@@ -14,6 +14,7 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${port}`,
     headless: true,
+    screenshot: "only-on-failure",
     ...devices['Desktop Chrome'],
   },
   webServer: {
