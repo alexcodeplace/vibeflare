@@ -1,3 +1,10 @@
 {
-  "extends": "../overdeck/tasks.yml"
+  "taskOptions": {
+    "cache": false,
+    "allowFailure": false,
+    "retryCount": 0,
+    "runDepsInParallel": false,
+    "runInCI": "always",
+    "outputStyle": "stream"
+  }
 }

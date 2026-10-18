@@ -1,5 +1,18 @@
 {
-  "extends": "./overdeck/workspace.yml",
+  "versionConstraint": "=2.6.2",
+  "telemetry": false,
+  "pipeline": {
+    "installDependencies": false,
+    "syncProjects": false,
+    "syncWorkspace": false,
+    "killProcessThreshold": 5000,
+    "logRunningCommand": true,
+    "inheritColorsForPipedTasks": false
+  },
+  "vcs": {
+    "client": "git",
+    "defaultBranch": "main"
+  },
   "projects": {
     "repo": "."
   }

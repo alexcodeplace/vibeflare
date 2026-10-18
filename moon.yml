@@ -5,9 +5,7 @@
   },
   "workspace": {
     "inheritedTasks": {
-      "include": [
-        "verify"
-      ]
+      "include": []
     }
   },
   "tasks": {
